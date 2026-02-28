@@ -1,0 +1,115 @@
+{
+  "cookies": [
+    {
+      "name": "AUTH_SESSION_ID",
+      "value": "dbc3b4e2-4c93-479d-b73a-f62e201bd335.ip-10-0-101-182-31949",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "AUTH_SESSION_ID_LEGACY",
+      "value": "dbc3b4e2-4c93-479d-b73a-f62e201bd335.ip-10-0-101-182-31949",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "KEYCLOAK_IDENTITY",
+      "value": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhODQ5YWQ0MC02OWM0LTQwYmMtYWYyMy02NzdkZjlkNDQyNjUifQ.eyJleHAiOjE3NzE0Nzk3ODUsImlhdCI6MTc3MTQzNjU4NSwianRpIjoiMDFiMjg1NTAtNzMyNS00ZWYwLWE5MGEtMGZkZmMxYjhiNTQ2IiwiaXNzIjoiaHR0cHM6Ly9pZHAuYnJpZGdlcmlucy10ZXN0LmNvbS9yZWFsbXMvYnJpZGdlci1kZXYiLCJzdWIiOiIxMWEwMTQ1OC0xOTYwLTRlNmQtYjcyZi01ZmQyNGViOTgzMDkiLCJ0eXAiOiJTZXJpYWxpemVkLUlEIiwic2lkIjoiZGJjM2I0ZTItNGM5My00NzlkLWI3M2EtZjYyZTIwMWJkMzM1Iiwic3RhdGVfY2hlY2tlciI6InBOa2UyOEh2bE5hVEJRLWhVYnJSQUFkRndxZXFzTzRLcUJhcUhXRkg0QVEifQ.XScOXsskeL_C4Vu339n4bggpNZWcTdgByIL0QgoTUQXUMAgVc1DHnBQHbVEWV1bPizU_KLop2_wMBC7hffEdxQ",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "KEYCLOAK_IDENTITY_LEGACY",
+      "value": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhODQ5YWQ0MC02OWM0LTQwYmMtYWYyMy02NzdkZjlkNDQyNjUifQ.eyJleHAiOjE3NzE0Nzk3ODUsImlhdCI6MTc3MTQzNjU4NSwianRpIjoiMDFiMjg1NTAtNzMyNS00ZWYwLWE5MGEtMGZkZmMxYjhiNTQ2IiwiaXNzIjoiaHR0cHM6Ly9pZHAuYnJpZGdlcmlucy10ZXN0LmNvbS9yZWFsbXMvYnJpZGdlci1kZXYiLCJzdWIiOiIxMWEwMTQ1OC0xOTYwLTRlNmQtYjcyZi01ZmQyNGViOTgzMDkiLCJ0eXAiOiJTZXJpYWxpemVkLUlEIiwic2lkIjoiZGJjM2I0ZTItNGM5My00NzlkLWI3M2EtZjYyZTIwMWJkMzM1Iiwic3RhdGVfY2hlY2tlciI6InBOa2UyOEh2bE5hVEJRLWhVYnJSQUFkRndxZXFzTzRLcUJhcUhXRkg0QVEifQ.XScOXsskeL_C4Vu339n4bggpNZWcTdgByIL0QgoTUQXUMAgVc1DHnBQHbVEWV1bPizU_KLop2_wMBC7hffEdxQ",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "KEYCLOAK_SESSION",
+      "value": "\"bridger-dev/11a01458-1960-4e6d-b72f-5fd24eb98309/dbc3b4e2-4c93-479d-b73a-f62e201bd335\"",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": 1771479786.007076,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "KEYCLOAK_SESSION_LEGACY",
+      "value": "\"bridger-dev/11a01458-1960-4e6d-b72f-5fd24eb98309/dbc3b4e2-4c93-479d-b73a-f62e201bd335\"",
+      "domain": "idp.bridgerins-test.com",
+      "path": "/realms/bridger-dev/",
+      "expires": 1771479786.007289,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Host-next-auth.csrf-token",
+      "value": "066db5f18b91b6b74f683557e4a52cb42274474802fd0cfcc055b7e13870559a%7Cdce905345a92916681ee4ed86fcc26ab5cf7ca41030dc2dde1d3c9655799df76",
+      "domain": "bridgerins-test.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-next-auth.callback-url",
+      "value": "https%3A%2F%2Fbridgerins-test.com%2F%3FredirectToQuotes%3Dtrue",
+      "domain": "bridgerins-test.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-next-auth.session-token.0",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..fw9-WvVPd7wnTTND.EdbFcd_vrGJ0Ph-f9I9Cm471PVIqYg8iuheWLK0lUmUCSLoAVdN5xHMy0AIVJeOcGSgNd4pdqsWiQ3cS7FyT9fcSwR3hQK4c1aYwJ1dS_RXUdWzGCzxIGfXsXVqQN5anntQxfXgnzBh_jj6iy5-tv4QBIHEQUN8Ng1b6xx1OMPhVLLo1Va5xeQMBBpYdwcH5HiZINzxTnNJAYwbNwIv6jpbMQmeAhbUjPlALsacWcTtj9dpQxZtVkUswf3PW7otNFYEOZWVqlEwIt0Ze0nystJ74G7P2vNpJgo5VQMDc86dlO6sEIKBWEAbh3RDs9lE5v8Vbnv6yxzeHKdWYzUqlVS0wvNRIKbI7aAEZ2aNvTmvcVNgednNay6WgahbKmmnzIdk1oHjLNWQr0mN1w-iZ7Tzu8vK5px8KbrG1rpdkaea3Q4iMo6D73ETn8pa16p9cusuta9K4IUf0q7GMJFelgagGH7bV5CI5jkMM4eNqqhvcngrUJRQXoqVd_vvIO9vEzIr4mIDa-i6N_wZTLC5TnbOO9U-RzFYKH71YEbSi8fAt93k8sosRlvzHdHpNHR3bh5rRm8GClrxRlk7jxVbR-m7fokr7UK477EsfYdJDNxF3T1eztpuhbpWpYVXgY5JFkPolapEhhHC5mfJFxe1ftzWalEur3uAzA892qIFvY2f3eDgX1z1CoVeasEHeYtnn9KP73RTJKBbOzzsXcgsbCTUxubnMY8ZIUmtDDWC4_diAm0tANsGqrbtvI5481eaQXEcuJM392Zn0x-7j9Uxvx_MG_aN3R5bZPjpW5T35E2CUglES0IQjcJV9TtUuuoprgp0u6iEZiTLJuroCl19-WGu8dQeRE7oLCjYqoVk3p_mVeZDqgMYAtEhg3zUU39cRT8vcNv06ep8KFmUrPlF1KZt4d5pn6kQmXWyrFaNuBCKXPfLZ1gWTJ0ETFqyxSyQ46CuCh-PnTGjkytReOvFoLzyX-IHnQFqnCnDqRhs4joXcF4TuNgrTMnLjw4m7Sb6MY5V900EPRwGTdfw1ateae4pXVlYhpwsmDmYQhkxnQXXA-byjMQ7S4niz9Bti2awnG2X7Gy1cVVWjmN3MJVY5ERmJ88tNIxotL0pvCJb2gT2eggaVNWBjkpoYbd0P4FVgn1zcJW4KxFakDwUdJB9J22mTeDfbTxoJ6K3bR7ql60Nn_3vAfXeZadbnFRMpfQgXtfc2LxhNplxuionhAihECqk1pIPcNTSvq6hmgGAzihcAMtdwChE07qhrsGmum6lNZY5l5Db9U1nBPc2CFZ3Rz2RonysJNk6DAMzJV5b_WKE3Czi_nQ4C8gawzMtOu6zTSAxBx1OUKWse4vJ-9G1_DxNQUFfly2B4qIIKyMq4HHQMaYqreoiZKaXa9zF1B3AxNxyAFYG3FpiwyjVjfVwNgRkCRewhAdpRsjQ5uUVcBO-DMphz9v9YTSlpq6zXJsd0WWJ1AIX84D5KCwjSbfJqoXMf16Oka03JZmPOtvpwqbaa_DykLpbtf1KKH4VG68vk-vos2tNWtCVHR_-pZlKFYJLZt2bf2WO_34G5SkZd9n2Kb_zcMCWWfDge6HkRxym1wtf7aLyhnBZXqGLwphlav_vuLhp4o8gfgtoCXSfyP-Res0GxBBo0LaAfLE6NFb_zIzrM-lueyzd4hYY2fQJp32U97zx1Jgk8jbP_1MXXbluKlzaFoOJFS0fczr8szSmCTkbXP9kDUOyue4dh-U9ff1SH-NCVQ4EttDVQ2oy3dQnafYo3HMC9EVbZGGCSSQi25COuL7fdc9GC9jC_m-Ox78400BHaBw9FLnTmV7CfMWxfJS4hFG0fCEMGuuauFwJMymR7k_ZqzpiAiITOWsVjeT8R0WrWJhn89P_sLZTdyB8aVV_dzCE9RbGAQHvX5Pj-MaUmrutadmuSV84zUaiYHzyvFVtIW-tWPA7VTVWjAo5NHxIXIbApDPi36Q6ns0qYQWgwumuJinsHmrqTpchYdOkpewbtFP2FK3IPMAvMiqq6GCSTOySej79zfN5fegNDfnr6K9cEOfHbQbbrYJbnowWHmcl40TFADdoU5C_POS1RHtZA8PFJsFdjbuAuf10FPWVtlWiPRjOcADGCtL8VYk5nj4UW7P9hq02q4gEKYbWylHj_hRFkqjF38wyWRNd12dKmdYpdjTCM2dC6Qph6Ok06wAtctfwUSu5uElNMcFNlTBkPklfZcOCFUWvi2YiueimlO6IuQs6WT1xd8t5nk_j_Ymz5b63IuPl_gTw0KimiyEOjxty_bJWCU-bTPmT4APyktZT1tDRxuqUnZcIEVa1z7j5feKKbRAnME_flQZBFhk6muhwvQD0QUK4qmhY0pqN4M7J1f481Ub0n9vBHX8kXYaFdb9PKcvOySTCC-XJQ43sXPl-kRVq-81B7OONVfeDAtswrvvsdYZG89haYi4QXBdDGgelYUIJYifM-pvjHBhoH2GCpYw9XHikbkxf8jrUBDidHX54IowbPEEdXnXByN7aoNsyncYb1yBdYKKF9r1XAJriotMFQIaVrZ4YbOn6SXpIfHWPRUnCJeuZxvMx9v2pHS5mDV8Z6mwspX4nUWiv8_zeyM5R6z_ImAXQZZjOlJIVqtRdwLPZuN8EPkwC4ucuc6nMXIrkbyxfs8AZjpD8P-azK0AEDdhmYklhAf9L-6MrQQStzB1ATy4L5Bvt6SKk0w9HbC8SkehvRB0LhWxet7WjkMgIRzTHy2ogN-V2sFlraLl0fR6tAH_AHZQkztXYXbduDyoryqOgcwlJ2LtWKMAl-Ipz6YtVd6nb3aQkoVfBig_yQlMZyBMYRbA7HxE4cy2DLjF0xlVTBQh3xmNW4qbtFliTBhQKKr22eIl3shaUpRlH6sDqVOVXnijr1Ay9F4qt8q8mmOSkAE1alJgnZ3FAfo_3mUborelKdJw-6jfrlJZGo-9Rr-hSCoLYBT8imXxKk9QR-oAhSOCJ7fqFSEt4UBgOK5n8oWN94vrbtoZpyi2ZdIXzWAKyW5LRDfDwvnlsKA_w7Ac86ujHRxHP6sA4IN6adOlmF0acIwMEAGt5I7y53Kdn4F8_8xW4YZjaMO93vyfjwg3zOg5fzgjAIxj53IJ6kOWwlNNCZ_daM-LXxNNrnaJeNM1RwJK4XUQUN1VrS296-vFP3ODwe6smuVFiKadhURcpsO96Jq0lz78Ho3U6qyxRdnZ-yTFLedSfZTxWmEz39xoocf0BsozD6MwSmDwJ1ogzj-7H33hQHF2gsYpfatg1rF1v3J2AON7lXDHNyVbrx4IG3fRcg0sgFFW53MSZxpkdELZiel_MvtwFnkj1W4qh72IgGy6CM69Q7Tu10HTctnhrI7Ww9RTllVemaqL8WSwXP6WmFMcCcoNwt9kUC3kfhZb_qCppw5xhDcgAro_SA7HEFI4ozcGik6ZmDkIQuIbUx2hVWtAoNGv_aaQxG4Mt5OrsW2qB8TXtZtZN71MKgUVo8kYroo8SpE9qZIgy8NRNzPLBHZ8_rX77HG3Cfti1DL3MiXEYiTFyAA9ks3_gTsLpAOm7INQasZrBRTOdbZfHZzh3tquT5u15FDFpMG0x7N2YQP0JpG_Ld7PdOWKNWHFwb575SdJ5w7qiTU2RVhc_BOqaSMNXrf8UhlAGFY_jSN3zch8CKSoAa4eCeKBwvUcW8nxSZR6_Rrn-lzJXCH_ncKBF5lZ_yu0TNUSshMa9tM1FzLcFzA5KgVdOv4iAGBYQGFmx0wJ5Qw-jcxyXrYwzXyzNsKaSCYuOOthE2hA5itVo5LEdV27f5Txk1hSVyHDswppUiaAgPoTQOkVo3jw98BTj3bcMwbUV2UocY3DFuNLtJavPxmrIlAIjuVia",
+      "domain": "bridgerins-test.com",
+      "path": "/",
+      "expires": 1774028586.322764,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__Secure-next-auth.session-token.1",
+      "value": "rQIKQCDXIqiv4qyUOPdOqtkN7LmdN58dtXz17uDKEmYMpvPBsBt44fkQpbAOqPypmFMO_8ObaZufpUrRa6uuRKSJirqj-lg1XJ1lDL3nAN3cespGyqewEWvGjFpdxfGzsAS5XTdjQFzUGG_d4u7rr8Uq8_yQZ7EA4Xsb70_K3-JPLNbAQbnZnFDySf8azdF1FcAMdgBZr4KC615xOSH7BtIFsOGJp4QvOVZOhhbiymINRvQ-EqRy209UxQAkfUFi2v6brJ8Ay24qzsFSUBq59_X1m1iXzc9PmoK3R7bdNMSxgdmARN_UqTzEIZsEXmsDAKMvFb9NOaxESF7zKFLIc6jdOpACLeNOS1YLJ50gyM2LQNcX4CcmXBhse0C-iv_bN_13Gx6ELPtqetBLtFNIjTpfWx3xhf8rAEDDn6oUZZS_HzhaNiNDdtNDFY3Tiy9Kq3Gf-0fiKNIl_e8Ck391IHB3VBCVpHPt_fNUrvtDWeKZkHIEfiJ4RAZQYp-Yubyul-8jwGJcI1BKyR_FoBbWV8iKIG3rtyHOFJexEdSiNyLsNZed_ARVQKgg_Ee6lh2EF7QLdfJX3CBBIqK4oae2OgafyYkNBhnq8_bG4HUc7ahh0_2hZUKdDwASPaEmXkfLl4NR-9KAYWsX4sf_6p10fX5DHRxdAwSQIqU82cYTkk7nVbl2kOLdOwQ1DMr0w7KcEHiLKcHWOuCxTSf9cnZCKncTJYXNFN6N2GP8LS474V3oTvUlz7bCClp4gCXSqzCkfJb1mS6URb75CugnQ5Qv2pPZqIVX42KmL7NaHY2Avw7OpI2EB36tVfedrdZe89xa1qJLO2OHiWDQK2CPTvLhqO7pGtjkaJxpWylcpxDZyfghrSzueOXeUwTYg_fp-nYNa0Mo17HPf98wuXR5fU2g8sD3uJxw9GWA56_w2c8U_CGBp11SGyZHWAa-hAXqanJY-I-Vc0OpXTU67DQR4UN0TufbmbT-m2lQv1E3lwLNNmysRfWWTgKyCt3ihUMlFCTGEQY62gbNRuaYvWn2_V3d1xQVHPigLa56gMUQG9kaeRqX0YQFsU9aYtd7uWZ2X2YAJyrYoiVDmB5Z-RnhJXonKY9ekbH6azLU-tVakAVHmCFOF7XI9GJk0_R05yjVZTc2sHXb2ct6UIUGab1_wPPeZzXej8gKuUb-uhKdjLDJmv4kf31Iyu1_y88zyrf-CXHCgbxYlSe8j-VjPd_RRYYc7iMWvZCyLc4m8p_CvKsdFugEU1C__RPhGWawTZGIgr8mPitKjSXWPTUxfQVPU0syLesa_Rg1DftDFYyq5A0gDgjZWjTAJ8rV3GoCA3WZJjosaYIRxbE-traCny8h0VzzjOuis-85qPYWgXUIDqwuifcwCHgHdWg60N1BvHrpU8mCpnLXzw7-i06AT763hzTWZOXaX-BrinAlgMMQ6cH2d7m8WfNHP4EiyJa9KE_o1pJyvlYF9p1WYb4KANggUeumj4A7j1NLt1xWE2R5v_HozMRDojukir8AhYqW2e3hEjViA_0WjnU1-WJ2sNkiWUvJs2ZBFy1jW2d1LcPbPh_VyVMgqp1E_cXopFdMnPrtGHyiI6KlvrNsESTRKroinhPp-jZdn_D3h5gMge5a9ibQ3hGyzveILr21y4EjN5lZl9P7iTYC2yeCpdfDmlWXfH9kM9klB8MJ3bZFherkI2_IhriExptVrIF3gxhRHaKTs0-eYIYJhV7mGJ333Tf7Rrrv-T668uaMVL6xc4cNK16A7KAxqzZA8qYNOqXm5vF7lgiXFZJX_n4U_qyraAdeVUPxo7mUTZHLDzqlsEznYC77eLuchhs0UvROX6oyz-bIZKK1cUjDkfVGew2pjaBNgq-K24SGF3xblhh-HwjRVLNieuA7OArT9l4bmhoOCGS2o3L6ImO7Mrh6OrTAbZZt8ke30IgIQZxnnN3XPOTwDcbzkt8TH-eKw6MOYwPzDMSktU87W8gKgSyi_f95fg6Qlj0_96iSJJ8GZrpd5DRO0Gc1AXgcbyaYttp8SU2RUP7atqXVXYNxgDuPHzcLrVG-eIbvRXji-AWi83Qd0h4Pv3FOesXNX_lRtqENsaGAI9XkceWZwbhU6MtCXEq9p47W4aLBMh24pzX5AsE6CLAWGryuPzmFgCnrWwl3a9OZTQ6qZm0A0s3W93czm5xO7vpeFbnWPTM56dpEXPy20ZJNviXONBQ20ofISUIo8HnpfZRf29Q5bsX_2r2D3osxDQWCWWg40jcQndvHDdu9N0ljTzCXcE5DCyEbGO9bJ.EVxnQ-cR5siBijSU67TneA",
+      "domain": "bridgerins-test.com",
+      "path": "/",
+      "expires": 1774028586.322847,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://idp.bridgerins-test.com",
+      "localStorage": [
+        {
+          "name": "bridger-theme",
+          "value": "{\"id\":\"2fae104d-fe48-45e4-9733-69d8311a01d3\",\"name\":\"primary\",\"primaryColor\":\"#009BDE\",\"secondaryColor\":\"#F3F6FD\",\"logo\":null,\"createdAt\":\"2025-07-11T14:54:47.968Z\",\"updatedAt\":\"2025-07-11T14:54:47.968Z\"}"
+        }
+      ]
+    }
+  ]
+}
