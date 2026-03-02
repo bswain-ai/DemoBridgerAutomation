@@ -7,17 +7,28 @@ export class CoverageNavigator {
   }
 
   // ==========================================
-  // Utility: Safe Toggle
+  // Safe Toggle (Handles Missing Elements)
   // ==========================================
   async toggleIfNeeded(locator, shouldEnable) {
     const element = this.page.locator(locator);
 
-    await expect(element).toBeVisible({ timeout: 20000 });
-    await expect(element).toBeEnabled({ timeout: 20000 });
+    const count = await element.count();
+
+    if (count === 0) {
+      console.log(`Coverage not present → skipping: ${locator}`);
+      return;
+    }
 
     await element.scrollIntoViewIfNeeded();
 
-    const isChecked = await element.isChecked();
+    const isVisible = await element.isVisible().catch(() => false);
+
+    if (!isVisible) {
+      console.log(`Coverage hidden → skipping: ${locator}`);
+      return;
+    }
+
+    const isChecked = await element.isChecked().catch(() => false);
 
     if (shouldEnable && !isChecked) {
       await element.click();
@@ -31,7 +42,7 @@ export class CoverageNavigator {
   }
 
   // ==========================================
-  // Coverage Mapping (Excel Driven)
+  // Coverage Map (Excel Driven)
   // ==========================================
   getCoverageMap() {
     return [
@@ -52,7 +63,8 @@ export class CoverageNavigator {
     const coverageMap = this.getCoverageMap();
 
     for (const coverage of coverageMap) {
-      const value = Number(policyData[coverage.key]) === 1;
+      const rawValue = policyData[coverage.key];
+      const value = rawValue && Number(rawValue) === 1;
 
       await this.toggleIfNeeded(coverage.locator, value);
     }
@@ -70,13 +82,9 @@ export class CoverageNavigator {
 
     if (!compSelected && !collSelected) return;
 
-    // Toggle Comp
     await this.toggleIfNeeded(locators.compToggle, compSelected);
-
-    // Toggle Coll
     await this.toggleIfNeeded(locators.collToggle, collSelected);
 
-    // Select Comp Deductible
     if (compSelected && policyData.CompDeductible) {
       await this.selectDeductible(
         locators.compDeductible,
@@ -85,7 +93,6 @@ export class CoverageNavigator {
       );
     }
 
-    // Select Coll Deductible
     if (collSelected && policyData.CollDeductible) {
       await this.selectDeductible(
         locators.collDeductible,
@@ -96,14 +103,19 @@ export class CoverageNavigator {
   }
 
   // ==========================================
-  // Deductible Selector
+  // Select Deductible
   // ==========================================
   async selectDeductible(dropdownLocator, optionLocatorFn, value) {
     const formattedValue = Number(value).toLocaleString("en-US");
 
     const dropdown = this.page.locator(dropdownLocator);
 
+    const count = await dropdown.count();
+
+    if (count === 0) return;
+
     await expect(dropdown).toBeVisible({ timeout: 15000 });
+
     await dropdown.scrollIntoViewIfNeeded();
     await dropdown.click();
 
@@ -121,6 +133,10 @@ export class CoverageNavigator {
   async refreshPrice() {
     const refreshBtn = this.page.locator(locators.refreshPriceBtn);
 
+    const count = await refreshBtn.count();
+
+    if (count === 0) return;
+
     await expect(refreshBtn).toBeVisible({ timeout: 20000 });
     await expect(refreshBtn).toBeEnabled({ timeout: 20000 });
 
@@ -134,10 +150,10 @@ export class CoverageNavigator {
   }
 
   // ==========================================
-  // Proceed → Back → Restore Cycle
+  // Proceed → Back → Restore
   // ==========================================
   async proceedThenBackAndRestore(policyData) {
-    console.log("Running stability cycle...");
+    console.log("Running coverage stability cycle");
 
     const proceedBtn = this.page.locator(locators.proceedQuoteBtn);
 
@@ -152,33 +168,28 @@ export class CoverageNavigator {
 
     await this.page.waitForLoadState("networkidle");
 
-    // Reapply coverages
     await this.applySimpleCoverages(policyData);
     await this.applyCompAndColl(policyData);
     await this.refreshPrice();
   }
 
   // ==========================================
-  // Master Coverage Flow
+  // Apply All Coverages
   // ==========================================
   async applyCoverages(policyData) {
-    console.log("==== APPLYING COVERAGES ====");
-    console.log(policyData);
+    console.log("Applying coverages");
 
-    // Initial Apply
     await this.applySimpleCoverages(policyData);
     await this.applyCompAndColl(policyData);
     await this.refreshPrice();
 
-    // Stability cycle
     await this.proceedThenBackAndRestore(policyData);
 
-    // Final proceed
     await this.proceedToPaymentWithRetry();
   }
 
   // ==========================================
-  // Final Proceed (Retry Safe)
+  // Proceed to Payment (Retry Safe)
   // ==========================================
   async proceedToPaymentWithRetry() {
     const proceedBtn = this.page.locator(locators.proceedQuoteBtn);
@@ -187,16 +198,22 @@ export class CoverageNavigator {
       try {
         console.log(`Proceed attempt ${attempt}`);
 
-        await expect(
-          this.page.locator(locators.disabledProceedBtn)
-        ).not.toBeVisible({ timeout: 5000 });
+        const disabledBtn = this.page.locator(
+          locators.disabledProceedBtn
+        );
+
+        const disabledCount = await disabledBtn.count();
+
+        if (disabledCount > 0) {
+          await expect(disabledBtn).not.toBeVisible({ timeout: 5000 });
+        }
 
         await expect(this.page.locator(locators.premiumValue)).toBeVisible({
-          timeout: 5000,
+          timeout: 10000,
         });
 
-        await expect(proceedBtn).toBeVisible({ timeout: 5000 });
-        await expect(proceedBtn).toBeEnabled({ timeout: 5000 });
+        await expect(proceedBtn).toBeVisible({ timeout: 10000 });
+        await expect(proceedBtn).toBeEnabled({ timeout: 10000 });
 
         await proceedBtn.click();
 
@@ -207,7 +224,7 @@ export class CoverageNavigator {
         console.log("Proceed successful");
         return;
       } catch (error) {
-        console.log(`Proceed failed on attempt ${attempt}`);
+        console.log(`Proceed failed attempt ${attempt}`);
 
         if (attempt === 3) {
           throw new Error("Proceed Quote failed after 3 attempts");

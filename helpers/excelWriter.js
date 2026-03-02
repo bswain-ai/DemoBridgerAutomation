@@ -1,49 +1,64 @@
 import xlsx from "xlsx";
 
 /**
- * Overwrites data starting from Row 2 (keeps header)
+ * Writes a row aligned with sheet headers
+ * Starts writing from Row 2 (RowIndex = 0)
  */
 export function writeRow(sheet, rowData, rowIndex) {
-  // Get existing header row
+
+  if (!sheet["!ref"]) {
+    throw new Error("Sheet has no headers defined.");
+  }
+
   const range = xlsx.utils.decode_range(sheet["!ref"]);
 
+  // Read header row
   const headers = [];
 
   for (let col = range.s.c; col <= range.e.c; col++) {
-    const cellAddress = xlsx.utils.encode_cell({ r: 0, c: col }); // header row
-    const cell = sheet[cellAddress];
+    const headerCell = xlsx.utils.encode_cell({ r: 0, c: col });
+    const cell = sheet[headerCell];
     headers.push(cell ? cell.v : "");
   }
 
-  // Build row aligned to headers
-  const rowArray = headers.map((header) => rowData[header] ?? "");
+  // Align row values to headers
+  const rowValues = headers.map(header => rowData[header] ?? "");
 
-  // Excel row index (Row 2 = index 0)
+  // Excel row (Row 2 = index 0)
   const excelRow = rowIndex + 1;
 
-  headers.forEach((_, colIndex) => {
+  rowValues.forEach((value, colIndex) => {
+
     const cellAddress = xlsx.utils.encode_cell({
       r: excelRow,
-      c: colIndex,
+      c: colIndex
     });
 
+    let cellType = "s";
+
+    if (typeof value === "number") {
+      cellType = "n";
+    }
+
     sheet[cellAddress] = {
-      t: "s",
-      v: rowArray[colIndex],
+      t: cellType,
+      v: value
     };
+
   });
 
-  // Update sheet range properly
-  const newRange = {
-    s: { r: 0, c: 0 },
-    e: { r: excelRow, c: headers.length - 1 },
-  };
+  // Expand sheet range
+  const newRange = xlsx.utils.decode_range(sheet["!ref"]);
+
+  if (excelRow > newRange.e.r) {
+    newRange.e.r = excelRow;
+  }
 
   sheet["!ref"] = xlsx.utils.encode_range(newRange);
 }
 
 /**
- * Save workbook
+ * Save workbook to file
  */
 export function saveWorkbook(workbook, filePath) {
   xlsx.writeFile(workbook, filePath);

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import { credentials } from "../config/credentials.js";
 import { login } from "../helpers/loginHelper.js";
 import { FakerData } from "../testData/fakerData.js";
@@ -17,16 +17,42 @@ import { UnderwriterNavigator } from "../Navigators/underwriterNavigator.js";
 import { PaymentNavigator } from "../Navigators/paymentNavigator.js";
 import { ConfirmationNavigator } from "../Navigators/confirmationNavigator.js";
 
+import { buildRaterData } from "../helpers/raterHelper.js";
+
 const filePath = credentials.dataFile;
 const resultPath = credentials.resultFile;
 
-const excelData = readSheetAsJson(filePath, "InputData_Policy&RateAccelator");
+
+// ================= Read Input Excel =================
+
+const excelData = readSheetAsJson(
+  filePath,
+  "InputData_Policy&RateAccelator"
+);
+
+console.log("Total Rows From Excel:", excelData.length);
+console.log("Excel Columns:", Object.keys(excelData[0] || {}));
+
+
+// ================= Test Loop =================
 
 excelData.forEach((policyData, index) => {
-  test(`Create Policy ${index + 1}`, async ({ page }) => {
-    if (!policyData?.VIN) test.skip();
 
-    // ================= Initialize =================
+  test(`Create Policy ${index + 1}`, async ({ page }) => {
+
+    const vin =
+      policyData["VIN*"] ||
+      policyData["VIN"] ||
+      policyData["Vin"] ||
+      "";
+
+    if (!vin) {
+      console.log("Skipping row due to missing VIN:", policyData);
+      test.skip();
+    }
+
+    // ================= Navigators =================
+
     const nameInsured = new NameInsuredNavigator(page);
     const addressNavigator = new AddressNavigator(page);
     const vehicleNavigator = new VehicleNavigator(page);
@@ -37,17 +63,28 @@ excelData.forEach((policyData, index) => {
     const paymentNavigator = new PaymentNavigator(page);
     const confirmationNavigator = new ConfirmationNavigator(page);
 
-    const { workbook: resultWorkbook, sheet: resultSheet } = openWorkbook(
+    // ================= Open Workbook =================
+
+    const { workbook, sheet: uiPremiumSheet } = openWorkbook(
       resultPath,
-      "Output_PolicyUIPremium",
+      "Output_PolicyUIPremium"
     );
 
+    const raterSheet = workbook.Sheets["Output_RaterPremium"];
+
+    if (!raterSheet) {
+      throw new Error(`Sheet "Output_RaterPremium" not found in ${resultPath}`);
+    }
+
     // ================= Login =================
+
     await login(page, "agent");
+
 
     // ================= Policy Flow =================
 
     const insuredData = FakerData.generateNamedInsured();
+
     await nameInsured.completeNamedInsured(policyData, insuredData);
     await addressNavigator.enterAddress(policyData);
     await vehicleNavigator.addVehicle(policyData);
@@ -55,7 +92,9 @@ excelData.forEach((policyData, index) => {
     await violationsNavigator.withoutViolation();
     await coverageNavigator.applyCoverages(policyData);
 
-    // ================= Payment + UW =================
+
+    // ================= UW + Payment =================
+
     await paymentNavigator.handleValidateEligibility();
 
     const uwQuestions = [
@@ -76,7 +115,9 @@ excelData.forEach((policyData, index) => {
 
     await confirmationNavigator.completeESignAndPurchase();
 
+
     // ================= Capture Policy Data =================
+
     const policyNo =
       (await page.locator(locators.policyNumber).textContent())?.trim() || "";
 
@@ -89,12 +130,16 @@ excelData.forEach((policyData, index) => {
     const paymentPlan =
       (await page.locator(locators.paymentPlan).textContent())?.trim() || "";
 
+
     // ================= Coverage Summary =================
+
     await confirmationNavigator.goToCoverageSummary();
 
     const totalPremium =
-      (await page.locator(locators.coveragePremium).textContent())?.trim() ||
-      "";
+      (await page.locator(locators.coveragePremium).textContent())?.trim() || "";
+
+
+    // ================= Premium Extraction =================
 
     const BiPremium = await getPremium(page, locators.BiPremium);
     const PdPremium = await getPremium(page, locators.PdPremium);
@@ -107,49 +152,64 @@ excelData.forEach((policyData, index) => {
     const RoadPremium = await getPremium(page, locators.roadPremium);
 
     const CompPremium =
-      Number(policyData.CompCollSection) === 1
+      Number(policyData["Veh Comp Selection"]) === 1
         ? await getPremium(page, locators.compPremium)
         : "";
 
     const CollPremium =
-      Number(policyData.CompCollSection) === 1
+      Number(policyData["VehColl Selection"]) === 1
         ? await getPremium(page, locators.collPremium)
         : "";
 
     const SR22Fee =
-      Number(policyData.SR22) === 1
+      Number(policyData["SR22"]) === 1
         ? await getPremium(page, locators.frFee)
         : "";
 
     const fraudFee = await getPremium(page, locators.fraudFee);
     const policyFee = await getPremium(page, locators.policyFee);
 
-    // ================= Write Results =================
-    const resultData = {
+
+    // ================= Write UI Premium =================
+
+    const uiPremiumData = {
       "TestCase No": `TestCase No:${index + 1}`,
       nameInsured: policyHolder,
-      policyTerm: policyTerm,
-      totalPremium: totalPremium,
-      paymentPlan: paymentPlan,
-      BiPremium: BiPremium,
-      PdPremium: PdPremium,
-      PipPremium: PipPremium,
-      MedpayPremium: MedpayPremium,
-      UmbiPremium: UmbiPremium,
-      UmpdPremium: UmpdPremium,
-      UimpdPremium: UimpdPremium,
+      policyTerm,
+      totalPremium,
+      paymentPlan,
+      BiPremium,
+      PdPremium,
+      PipPremium,
+      MedpayPremium,
+      UmbiPremium,
+      UmpdPremium,
+      UimpdPremium,
       OtherThanCollision: CompPremium,
       Collision: CollPremium,
       "Rental Reimbursement": RentalPremium,
       "Roadside Assistance": RoadPremium,
-      SR22Fee: SR22Fee,
+      SR22Fee,
       PolicyFee: policyFee,
       FraudFee: fraudFee,
       "Policy Number": policyNo,
     };
 
-    writeRow(resultSheet, resultData, index);
-    saveWorkbook(resultWorkbook, resultPath);
+    writeRow(uiPremiumSheet, uiPremiumData, index);
+
+
+    // ================= Write Rater Output =================
+
+    const raterData = buildRaterData(policyData, index);
+
+    console.log("Rater Data:", raterData);
+
+    writeRow(raterSheet, raterData, index);
+
+
+    // ================= Save Workbook =================
+
+    saveWorkbook(workbook, resultPath);
 
     console.log(`Policy ${index + 1} created successfully`);
   });

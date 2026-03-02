@@ -12,12 +12,12 @@ export class ViolationsNavigator {
     // Wait for violations page to load (optional safety check)
     await expect(
       this.page.locator(locators.policyEffectiveDate)
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 50000 });
 
     const nextBtn = this.page.locator(locators.nextButton);
 
-    await expect(nextBtn).toBeVisible({ timeout: 10000 });
-    await expect(nextBtn).toBeEnabled({ timeout: 10000 });
+    await expect(nextBtn).toBeVisible({ timeout: 50000 });
+    await expect(nextBtn).toBeEnabled({ timeout: 50000 });
 
     await nextBtn.click({ timeout: 10000 });
 

@@ -1,6 +1,6 @@
 param(
-  [string]$file,
-  [string]$json
+    [string]$file,
+    [string]$json
 )
 
 # ================= READ JSON =================
@@ -11,31 +11,26 @@ $decodedJson = [System.Text.Encoding]::UTF8.GetString(
 
 $data = $decodedJson | ConvertFrom-Json
 
-# ================= EXCEL OPEN =================
+
+# ================= OPEN EXCEL =================
 
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $false
 
-$wb   = $excel.Workbooks.Open($file)
+$wb = $excel.Workbooks.Open($file)
 $rate = $wb.Sheets.Item("RateOrder")
 
-# ================= READ BUSINESS USE FROM MISC =================
 
-$miscSheet = $wb.Sheets.Item("Misc")
+# ================= CONVERT VALUES =================
 
-$found = $miscSheet.Columns(1).Find("BusinessUse")
+$nonOwnerValue = if ($data.NonOwner -eq 1) { "Yes" } else { "No" }
+$sr22Value = if ($data.SR22 -eq 1) { "Yes" } else { "No" }
 
-if (-not $found) {
-    throw "BusinessUse not found in Misc sheet"
-}
 
-# Column B = FloatValue:F
-$businessUseValue = [double]$miscSheet.Cells($found.Row, 2).Value2
+# ================= BASIC POLICY INPUT =================
 
-Write-Host "BusinessUse value from Misc:" $businessUseValue
-
-# ================= INPUT VALUES =================
+Write-Host "Writing policy data..."
 
 $rate.Range("Q55").Value2 = "$($data.ASM)"
 $rate.Range("Q57").Value2 = [int]$data.Zip
@@ -50,82 +45,97 @@ $rate.Range("Q72").Value2 = [int]$data.Year
 $rate.Range("Q73").Value2 = "$($data.Make)"
 $rate.Range("Q74").Value2 = "$($data.Model)"
 
-# Comp / Coll
+
+# ================= SYMBOL VALUES =================
+# These must stay 32 / 32
+
+Write-Host "Writing Comp/Coll symbols..."
+
 $rate.Range("Q76").Value2 = [int]$data.Comp
 $rate.Range("Q77").Value2 = [int]$data.Coll
 
-# Deductibles
-$rate.Range("K54").Value2 = [int]$data.CompDeductible
-$rate.Range("L54").Value2 = [int]$data.CollDeductible
 
-$rate.Range("Q79").Value2 = "$($data.NonOwner)"
-$rate.Range("Q80").Value2 = "$($data.SR22)"
+# ================= OTHER FLAGS =================
+
+$rate.Range("Q79").Value2 = $nonOwnerValue
+$rate.Range("Q80").Value2 = $sr22Value
 
 $rate.Range("Q82").Value2 = [int]$data.Term
-$rate.Range("Q84").Value2 = [int]$data.PriorCoverage
-$rate.Range("Q85").Value2 = "$($data.MultiCar)"
+$rate.Range("Q84").Value2 = [int]$data.'Prior Coverage'
+$rate.Range("Q85").Value2 = "$($data.'Multi-Car')"
 
-# Business Use BI / PD
-$rate.Range("C69").Value2 = [double]$data.BusinessUseBI
-$rate.Range("D69").Value2 = [double]$data.BusinessUsePD
 
-# ================= CONDITIONAL COVERAGE LOGIC =================
+# ================= VEHICLE USE =================
 
-if ($data.ZeroCoverages -eq $true) {
+Write-Host "Setting vehicle use..."
 
-    # Base Rate Row
-    $r = 57
+$rate.Range("Q87").Value2 = "$($data.VehUse)"
 
-    # BusinessUse Row
-    $row = 69
 
-    $pipYes  = [int]$data.PIPSection -eq 1
-    $compYes = [int]$data.CompCollSection -eq 1
+# ================= SELECT ROW VALUES =================
+# ⭐ THIS MUST BE BEFORE CALCULATION
 
-    # CASE 1 – PIP ONLY
-    if ($pipYes -and -not $compYes) {
+Write-Host "Writing SELECT row..."
 
-        $rate.Range("E$r","I$r").Value2 = 0
-        $rate.Range("K$r","N$r").Value2 = 0
+$rate.Range("E52").Value2 = [int]$data.UMBI
+$rate.Range("F52").Value2 = [int]$data.UIMBI
+$rate.Range("G52").Value2 = [int]$data.MED
+$rate.Range("H52").Value2 = [int]$data.UMPD
+$rate.Range("I52").Value2 = [int]$data.UIMPD
+$rate.Range("J52").Value2 = [int]$data.PIP
 
-        Write-Host "Case1: Only PIP active"
-    }
+# ⭐ IMPORTANT VALUES
+$rate.Range("K52").Value2 = [int]$data.COMP
+$rate.Range("L52").Value2 = [int]$data.COLL
 
-    # CASE 2 – COMP/COLL ONLY
-    elseif (-not $pipYes -and $compYes) {
+$rate.Range("M52").Value2 = [int]$data.'ROAD-SIDE'
+$rate.Range("N52").Value2 = [int]$data.RENTAL
 
-        $rate.Range("E$r","J$r").Value2 = 0
-        $rate.Range("M$r","N$r").Value2 = 0
 
-        # Apply BusinessUse from Misc
-        $rate.Range("K$row","L$row").Value2 = $businessUseValue
+# ================= DEDUCTIBLES =================
 
-        Write-Host "Case2: Only Comp/Coll active - BusinessUse applied"
-    }
+Write-Host "Writing deductibles..."
 
-    # CASE 3 – BOTH YES
-    elseif ($pipYes -and $compYes) {
-        Write-Host "Case3: All active"
-    }
-
-    # CASE 4 – BOTH NO
-    else {
-
-        $rate.Range("E$r","N$r").Value2 = 0
-        Write-Host "Case4: All zero"
-    }
+if ($data.COMP -eq 1) {
+    $rate.Range("K54").Value2 = [int]$data.CompDed
+}
+else {
+    $rate.Range("K54").Value2 = 0
 }
 
-# ================= RECALCULATE =================
+if ($data.COLL -eq 1) {
+    $rate.Range("L54").Value2 = [int]$data.CollDed
+}
+else {
+    $rate.Range("L54").Value2 = 0
+}
+
+
+# ================= CALCULATE =================
+
+Write-Host "Recalculating rater..."
 
 $excel.CalculateFullRebuild()
-Start-Sleep 3
+
+Start-Sleep 2
+
+
+# ================= SAVE =================
+
+Write-Host "Saving rater..."
 
 $wb.Save()
 $wb.Close($true)
 $excel.Quit()
 
+
+# ================= CLEAN MEMORY =================
+
 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($rate) | Out-Null
-[System.Runtime.InteropServices.Marshal]::ReleaseComObject($miscSheet) | Out-Null
 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($wb) | Out-Null
 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+
+[GC]::Collect()
+[GC]::WaitForPendingFinalizers()
+
+Write-Host "Rater execution completed successfully"
