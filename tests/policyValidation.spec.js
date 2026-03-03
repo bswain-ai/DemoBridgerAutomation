@@ -52,9 +52,11 @@ test("Populate Intermediary Rater File", async () => {
     // Create Rater File
     // =========================
 
+    const testCaseId = `TC${String(index + 1).padStart(3, "0")}`;
+
     const newRaterFile = path.join(
       raterFolder,
-      `${policyNumber}_Rater File.xlsx`,
+      `${testCaseId}_${policyNumber}.xlsx`,
     );
 
     fs.copyFileSync(credentials.raterFile, newRaterFile);

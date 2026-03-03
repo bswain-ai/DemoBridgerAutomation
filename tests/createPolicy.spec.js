@@ -173,7 +173,7 @@ excelData.forEach((policyData, index) => {
     // ================= Write UI Premium =================
 
     const uiPremiumData = {
-      "TestCase No": `TestCase No:${index + 1}`,
+      "TestCase No": `TC${String(index + 1).padStart(3, "0")}`,
       nameInsured: policyHolder,
       policyTerm,
       totalPremium,
