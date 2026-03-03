@@ -19,6 +19,9 @@ test("Populate Intermediary Rater File", async () => {
 
   const rows = xlsx.utils.sheet_to_json(raterSheet);
 
+  // 👇 ADD THIS LINE HERE
+  console.log("Headers in Output_RaterPremium:", Object.keys(rows[0]));
+
   console.log("Rows Found:", rows.length);
 
   // =========================
@@ -74,8 +77,14 @@ test("Populate Intermediary Rater File", async () => {
       Make: row["Make"],
       Model: row["Model"],
 
-      Comp: row["Comp"],
-      Coll: row["Coll"],
+      CompSymbol: row["Comp"],
+      CollSymbol: row["Coll"],
+
+      CompFlag: row["COMP"],
+      CollFlag: row["COLL"],
+
+      CompDed: row["CompDed"],
+      CollDed: row["CollDed"],
 
       NonOwner: row["NonOwner"],
       SR22: row["SR22"],

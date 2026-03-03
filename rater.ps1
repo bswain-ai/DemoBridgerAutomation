@@ -51,8 +51,8 @@ $rate.Range("Q74").Value2 = "$($data.Model)"
 
 Write-Host "Writing Comp/Coll symbols..."
 
-$rate.Range("Q76").Value2 = [int]$data.Comp
-$rate.Range("Q77").Value2 = [int]$data.Coll
+$rate.Range("Q76").Value2 = [int]$data.CompSymbol
+$rate.Range("Q77").Value2 = [int]$data.CollSymbol
 
 
 # ================= OTHER FLAGS =================
@@ -85,8 +85,8 @@ $rate.Range("I52").Value2 = [int]$data.UIMPD
 $rate.Range("J52").Value2 = [int]$data.PIP
 
 # ⭐ IMPORTANT VALUES
-$rate.Range("K52").Value2 = [int]$data.COMP
-$rate.Range("L52").Value2 = [int]$data.COLL
+$rate.Range("K52").Value2 = [int]$data.CompFlag
+$rate.Range("L52").Value2 = [int]$data.CollFlag
 
 $rate.Range("M52").Value2 = [int]$data.'ROAD-SIDE'
 $rate.Range("N52").Value2 = [int]$data.RENTAL
@@ -96,14 +96,14 @@ $rate.Range("N52").Value2 = [int]$data.RENTAL
 
 Write-Host "Writing deductibles..."
 
-if ($data.COMP -eq 1) {
+if ($data.CompFlag -eq 1) {
     $rate.Range("K54").Value2 = [int]$data.CompDed
 }
 else {
     $rate.Range("K54").Value2 = 0
 }
 
-if ($data.COLL -eq 1) {
+if ($data.CollFlag -eq 1) {
     $rate.Range("L54").Value2 = [int]$data.CollDed
 }
 else {
