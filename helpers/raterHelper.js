@@ -80,8 +80,6 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "License Type": getValue(policyData, "License Type**", "License Type"),
 
-    FullCoverage: Number(getValue(policyData, "FullCoverage")) || 0,
-
     DriverCount:
       Number(getValue(policyData, "DriverCount**", "DriverCount")) || 1,
 
@@ -142,12 +140,12 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     NonOwner: getValue(policyData, "NonOwner **", "NonOwner") === "Yes" ? 1 : 0,
 
     SR22: Number(getValue(policyData, "SR22")) || 0,
+    DefensiveDriver: Number(policyData["DefensiveDriver"]) || 0,
+    DrugDiscount: Number(policyData["DrugDiscount"]) || 0,
 
     Term: Number(getValue(policyData, "TermLength")) || 6,
 
     "Prior Coverage": Number(getValue(policyData, "Prior Coverage")) || 0,
-
-    "Multi-Car": getValue(policyData, "Multi-Car") || "N",
 
     VehUse: normalizeVehUse(vehUseInput),
 

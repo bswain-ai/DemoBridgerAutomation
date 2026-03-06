@@ -26,6 +26,8 @@ $rate = $wb.Sheets.Item("RateOrder")
 
 $nonOwnerValue = if ($data.NonOwner -eq 1) { "Yes" } else { "No" }
 $sr22Value = if ($data.SR22 -eq 1) { "Yes" } else { "No" }
+$defensiveDriverValue = if ($data.DefensiveDriver -eq 1) { "Y" } else { "N" }
+$drugDiscountValue = if ($data.DrugDiscount -eq 1) { "Y" } else { "N" }
 
 
 # ================= BASIC POLICY INPUT =================
@@ -36,7 +38,6 @@ $rate.Range("Q55").Value2 = "$($data.ASM)"
 $rate.Range("Q57").Value2 = [int]$data.Zip
 $rate.Range("Q60").Value2 = "$($data.LicenseType)"
 
-$rate.Range("Q64").Value2 = [int]$data.FullCoverage
 $rate.Range("Q67").Value2 = [int]$data.DriverCount
 $rate.Range("Q68").Value2 = [int]$data.VehicleCount
 
@@ -62,14 +63,13 @@ $rate.Range("Q80").Value2 = $sr22Value
 
 $rate.Range("Q82").Value2 = [int]$data.Term
 $rate.Range("Q84").Value2 = [int]$data.'Prior Coverage'
-$rate.Range("Q85").Value2 = "$($data.'Multi-Car')"
 
 
 # ================= VEHICLE USE =================
 
 Write-Host "Setting vehicle use..."
 
-$rate.Range("Q87").Value2 = "$($data.VehUse)"
+$rate.Range("Q86").Value2 = "$($data.VehUse)"
 
 
 # ================= SELECT ROW VALUES =================
@@ -121,6 +121,12 @@ if ($null -ne $data.RentalValue -and $data.RentalValue -ne "") {
     $rate.Range("N54").Value2 = "$($data.RentalValue)"
 }
 
+# ================= DRIVER DISCOUNTS =================
+
+Write-Host "Writing driver discounts..."
+
+$rate.Range("Q93").Value2 = $defensiveDriverValue
+$rate.Range("Q94").Value2 = $drugDiscountValue
 
 # ================= CALCULATE =================
 

@@ -34,7 +34,7 @@ test("Create Rater File and Calculate Premium", async () => {
 
   const raterFolder = path.join(
     path.dirname(credentials.resultFile),
-    "RaterOutput"
+    "RaterOutput",
   );
 
   if (!fs.existsSync(raterFolder)) {
@@ -50,8 +50,7 @@ test("Create Rater File and Calculate Premium", async () => {
 
     const excelRow = index + 2;
 
-    const policyNumber =
-      uiSheet[`T${excelRow}`]?.v || `Policy_${index + 1}`;
+    const policyNumber = uiSheet[`T${excelRow}`]?.v || `Policy_${index + 1}`;
 
     console.log("Processing Policy:", policyNumber);
 
@@ -63,7 +62,7 @@ test("Create Rater File and Calculate Premium", async () => {
 
     const newRaterFile = path.join(
       raterFolder,
-      `${testCaseId}_${policyNumber}.xlsx`
+      `${testCaseId}_${policyNumber}.xlsx`,
     );
 
     fs.copyFileSync(credentials.raterFile, newRaterFile);
@@ -115,6 +114,8 @@ test("Create Rater File and Calculate Premium", async () => {
 
       NonOwner: row["NonOwner"],
       SR22: row["SR22"],
+      DefensiveDriver: row["DefensiveDriver"] || 0,
+      DrugDiscount: row["DrugDiscount"] || 0,
 
       Term: row["Term"],
       "Prior Coverage": row["Prior Coverage"],
@@ -123,7 +124,7 @@ test("Create Rater File and Calculate Premium", async () => {
       "BusinessUse BI": row["BusinessUse BI"],
       "BusinessUse PD": row["BusinessUse PD"],
 
-      VehUse: row["VehUse"] || ""
+      VehUse: row["VehUse"] || "",
     };
 
     // =========================
@@ -155,7 +156,7 @@ test("Create Rater File and Calculate Premium", async () => {
 
     execSync(
       `powershell.exe -ExecutionPolicy Bypass -File "./rater.ps1" "${newRaterFile}" "${encoded}"`,
-      { stdio: "inherit" }
+      { stdio: "inherit" },
     );
 
     console.log("Created Rater File:", newRaterFile);
@@ -176,7 +177,7 @@ test("Create Rater File and Calculate Premium", async () => {
       credentials.resultFile,
       "Output_RaterPremium",
       index + 1,
-      premium
+      premium,
     );
   }
 

@@ -37,8 +37,12 @@ export class DriverNavigator {
       .locator(locators.driverLicenseMonths)
       .fill(policyData.DLicenseMonths.toString());
 
-    // SR22 handled here
+    // ===============================
+    // Handle Checkboxes
+    // ===============================
     await this.handleSR22(policyData);
+    await this.handleDefensiveDriver(policyData);
+    await this.handleDrugDiscount(policyData);
 
     await this.page.locator(locators.driverOccupation).click();
 
@@ -55,7 +59,7 @@ export class DriverNavigator {
   }
 
   // =========================================
-  // SR22 Logic (Clean & Stable)
+  // SR22 Logic
   // =========================================
   async handleSR22(policyData) {
     const sr22Value = Number(policyData.SR22);
@@ -76,6 +80,60 @@ export class DriverNavigator {
       console.log("SR22 enabled");
     } else {
       console.log("SR22 already enabled");
+    }
+  }
+
+  // =========================================
+  // Defensive Driver Logic
+  // =========================================
+  async handleDefensiveDriver(policyData) {
+    const defensiveValue = Number(policyData.DefensiveDriver);
+
+    if (defensiveValue !== 1) {
+      console.log("Defensive Driver not selected");
+      return;
+    }
+
+    const defensiveCheckbox = this.page.locator(
+      locators.defensiveDriverCheckBox
+    );
+
+    await expect(defensiveCheckbox).toBeVisible({ timeout: 10000 });
+
+    const isChecked = await defensiveCheckbox.isChecked();
+
+    if (!isChecked) {
+      await defensiveCheckbox.click({ force: true });
+      console.log("Defensive Driver enabled");
+    } else {
+      console.log("Defensive Driver already enabled");
+    }
+  }
+
+  // =========================================
+  // Drug Discount Logic
+  // =========================================
+  async handleDrugDiscount(policyData) {
+    const drugValue = Number(policyData.DrugDiscount);
+
+    if (drugValue !== 1) {
+      console.log("Drug Discount not selected");
+      return;
+    }
+
+    const drugCheckbox = this.page.locator(
+      locators.drugDiscountCheckBox
+    );
+
+    await expect(drugCheckbox).toBeVisible({ timeout: 10000 });
+
+    const isChecked = await drugCheckbox.isChecked();
+
+    if (!isChecked) {
+      await drugCheckbox.click({ force: true });
+      console.log("Drug Discount enabled");
+    } else {
+      console.log("Drug Discount already enabled");
     }
   }
 }

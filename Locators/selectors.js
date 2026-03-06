@@ -49,6 +49,8 @@ export const locators = {
   driverLicenseMonths: `//input[@id='driver_license_month']`,
   licenseTxtBox: `//input[@id='driver_license_number']`,
   sr22CheckBox: `[data-test="f_driver_sr22"]`,
+  defensiveDriverCheckBox: `[data-test="f_driver_defensive"]`,
+  drugDiscountCheckBox: `[data-test="f_driver_alcohol_awareness"]`,
   driverOccupation: `[data-test="f_driver_occupation"]`,
   selectOccupation: (occupation) =>
     `//ul[@id='driver_occupation-listbox']/li[contains(text(),'${occupation}')]`,
@@ -83,9 +85,10 @@ export const locators = {
   roadsideToggle:
   '[data-test="coverage-item-switch-Roadside Assistance-0"] input[type="checkbox"]',
 
-  rrLimit: '#Rental Reimbursement-limit',
-  rrDuration: '#Rental Reimbursement-deductible',
-  rsaLimit: '#Roadside Assistance-limit',
+  rrLimit: '[data-test="coverage-item-limit-Rental Reimbursement-0"]',
+  rrDuration: '[data-test="coverage-item-deductible-Rental Reimbursement-0"]',
+  rsaLimit: '[data-test="coverage-item-limit-Roadside Assistance-0"]',
+  rsaOption: (value) => `//li[contains(text(),'${value}')]`,
 
   compDeductible: `[aria-labelledby*="Other than Collision"]`,
   collDeductible: `[aria-labelledby="Collision-deductible-label Collision-deductible"]`,

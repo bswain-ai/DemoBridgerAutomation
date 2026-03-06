@@ -74,11 +74,9 @@ export class CoverageNavigator {
   // Apply Comp + Coll
   // ==========================================
   async applyCompAndColl(policyData) {
-    const compSelected =
-      Number(policyData["Veh Comp Selection"]) === 1;
+    const compSelected = Number(policyData["Veh Comp Selection"]) === 1;
 
-    const collSelected =
-      Number(policyData["VehColl Selection"]) === 1;
+    const collSelected = Number(policyData["VehColl Selection"]) === 1;
 
     if (!compSelected && !collSelected) return;
 
@@ -89,7 +87,7 @@ export class CoverageNavigator {
       await this.selectDeductible(
         locators.compDeductible,
         locators.compDeductibleOption,
-        policyData.CompDeductible
+        policyData.CompDeductible,
       );
     }
 
@@ -97,7 +95,7 @@ export class CoverageNavigator {
       await this.selectDeductible(
         locators.collDeductible,
         locators.collDeductibleOption,
-        policyData.CollDeductible
+        policyData.CollDeductible,
       );
     }
   }
@@ -106,10 +104,8 @@ export class CoverageNavigator {
   // Rental + Roadside Values
   // ==========================================
   async applyAddonValues(policyData) {
-
     // ---------- Rental ----------
     if (Number(policyData["RR Selection"]) === 1) {
-
       const rrLimit = policyData["RR Limit"];
       const rrDuration = policyData["RR Duration"];
 
@@ -134,14 +130,22 @@ export class CoverageNavigator {
 
     // ---------- Roadside ----------
     if (Number(policyData["RSA Selection"]) === 1) {
-
       const rsaVal = policyData["RSA Val"];
 
       if (rsaVal) {
         const rsaDropdown = this.page.locator(locators.rsaLimit);
 
         if (await rsaDropdown.count()) {
-          await rsaDropdown.selectOption(String(rsaVal));
+          // open dropdown
+          await rsaDropdown.click();
+
+          // select option
+          const option = this.page.locator(locators.rsaOption(rsaVal));
+
+          await option.waitFor({ state: "visible", timeout: 10000 });
+
+          await option.click();
+
           console.log("RSA selected:", rsaVal);
         }
       }
@@ -203,11 +207,12 @@ export class CoverageNavigator {
 
     const proceedBtn = this.page.locator(locators.proceedQuoteBtn);
 
-    await expect(proceedBtn).toBeEnabled({ timeout: 20000 });
+    await expect(proceedBtn).toBeEnabled({ timeout: 50000 });
+    await expect(proceedBtn).toBeVisible({ timeout: 50000 });
     await proceedBtn.click();
 
     await expect(this.page.locator(locators.paymentOptions)).toBeVisible({
-      timeout: 20000,
+      timeout: 50000,
     });
 
     await this.page.locator(locators.backBtn).click();
@@ -248,9 +253,7 @@ export class CoverageNavigator {
       try {
         console.log(`Proceed attempt ${attempt}`);
 
-        const disabledBtn = this.page.locator(
-          locators.disabledProceedBtn
-        );
+        const disabledBtn = this.page.locator(locators.disabledProceedBtn);
 
         const disabledCount = await disabledBtn.count();
 

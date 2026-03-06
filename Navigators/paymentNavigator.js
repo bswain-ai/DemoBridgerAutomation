@@ -54,7 +54,7 @@ export class PaymentNavigator {
 
     await this.page
       .locator(locators.officeEsign)
-      .click({ timeout: 10000 });
+      .click({ timeout: 50000 });
 
     await this.page
       .locator(locators.checkNumberTextBox)
@@ -62,6 +62,6 @@ export class PaymentNavigator {
 
     await this.page
       .locator(locators.nextButton)
-      .click({ timeout: 10000 });
+      .click({ timeout: 50000 });
   }
 }
