@@ -36,7 +36,9 @@ console.log("Excel Columns:", Object.keys(excelData[0] || {}));
 
 // ================= Test Loop =================
 
-excelData.forEach((policyData, index) => {
+for (let index = 0; index < excelData.length; index++) {
+
+  const policyData = excelData[index];
 
   test(`Create Policy ${index + 1}`, async ({ page }) => {
 
@@ -148,6 +150,7 @@ excelData.forEach((policyData, index) => {
     const UmbiPremium = await getPremium(page, locators.umbiPremium);
     const UmpdPremium = await getPremium(page, locators.umpdPremium);
     const UimpdPremium = await getPremium(page, locators.uimpdPremium);
+
     const RentalPremium = await getPremium(page, locators.rentalPremium);
     const RoadPremium = await getPremium(page, locators.roadPremium);
 
@@ -212,5 +215,7 @@ excelData.forEach((policyData, index) => {
     saveWorkbook(workbook, resultPath);
 
     console.log(`Policy ${index + 1} created successfully`);
+
   });
-});
+
+}

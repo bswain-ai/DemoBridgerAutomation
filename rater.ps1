@@ -73,7 +73,6 @@ $rate.Range("Q87").Value2 = "$($data.VehUse)"
 
 
 # ================= SELECT ROW VALUES =================
-# ⭐ THIS MUST BE BEFORE CALCULATION
 
 Write-Host "Writing SELECT row..."
 
@@ -84,12 +83,12 @@ $rate.Range("H52").Value2 = [int]$data.UMPD
 $rate.Range("I52").Value2 = [int]$data.UIMPD
 $rate.Range("J52").Value2 = [int]$data.PIP
 
-# ⭐ IMPORTANT VALUES
+# IMPORTANT VALUES
 $rate.Range("K52").Value2 = [int]$data.CompFlag
 $rate.Range("L52").Value2 = [int]$data.CollFlag
 
-$rate.Range("M52").Value2 = [int]$data.'ROAD-SIDE'
-$rate.Range("N52").Value2 = [int]$data.RENTAL
+$rate.Range("M52").Value2 = [int]$data.RoadSide
+$rate.Range("N52").Value2 = "$($data.Rental)"
 
 
 # ================= DEDUCTIBLES =================
@@ -100,14 +99,26 @@ if ($data.CompFlag -eq 1) {
     $rate.Range("K54").Value2 = [int]$data.CompDed
 }
 else {
-    $rate.Range("K54").Value2 = 0
+    $rate.Range("K54").Value2 = 250
 }
 
 if ($data.CollFlag -eq 1) {
     $rate.Range("L54").Value2 = [int]$data.CollDed
 }
 else {
-    $rate.Range("L54").Value2 = 0
+    $rate.Range("L54").Value2 = 250
+}
+
+# ================= ADDONS =================
+
+Write-Host "Writing RSA and Rental..."
+
+if ($null -ne $data.RSALimit -and $data.RSALimit -ne "") {
+    $rate.Range("M54").Value2 = [int]$data.RSALimit
+}
+
+if ($null -ne $data.RentalValue -and $data.RentalValue -ne "") {
+    $rate.Range("N54").Value2 = "$($data.RentalValue)"
 }
 
 

@@ -83,6 +83,10 @@ export const locators = {
   roadsideToggle:
   '[data-test="coverage-item-switch-Roadside Assistance-0"] input[type="checkbox"]',
 
+  rrLimit: '#Rental Reimbursement-limit',
+  rrDuration: '#Rental Reimbursement-deductible',
+  rsaLimit: '#Roadside Assistance-limit',
+
   compDeductible: `[aria-labelledby*="Other than Collision"]`,
   collDeductible: `[aria-labelledby="Collision-deductible-label Collision-deductible"]`,
   refreshPriceBtn: ` //button[normalize-space()='Refresh Price']`,

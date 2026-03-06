@@ -103,6 +103,52 @@ export class CoverageNavigator {
   }
 
   // ==========================================
+  // Rental + Roadside Values
+  // ==========================================
+  async applyAddonValues(policyData) {
+
+    // ---------- Rental ----------
+    if (Number(policyData["RR Selection"]) === 1) {
+
+      const rrLimit = policyData["RR Limit"];
+      const rrDuration = policyData["RR Duration"];
+
+      if (rrLimit) {
+        const limitDropdown = this.page.locator(locators.rrLimit);
+
+        if (await limitDropdown.count()) {
+          await limitDropdown.selectOption(String(rrLimit));
+          console.log("RR Limit selected:", rrLimit);
+        }
+      }
+
+      if (rrDuration) {
+        const durationDropdown = this.page.locator(locators.rrDuration);
+
+        if (await durationDropdown.count()) {
+          await durationDropdown.selectOption(String(rrDuration));
+          console.log("RR Duration selected:", rrDuration);
+        }
+      }
+    }
+
+    // ---------- Roadside ----------
+    if (Number(policyData["RSA Selection"]) === 1) {
+
+      const rsaVal = policyData["RSA Val"];
+
+      if (rsaVal) {
+        const rsaDropdown = this.page.locator(locators.rsaLimit);
+
+        if (await rsaDropdown.count()) {
+          await rsaDropdown.selectOption(String(rsaVal));
+          console.log("RSA selected:", rsaVal);
+        }
+      }
+    }
+  }
+
+  // ==========================================
   // Select Deductible
   // ==========================================
   async selectDeductible(dropdownLocator, optionLocatorFn, value) {
@@ -170,6 +216,8 @@ export class CoverageNavigator {
 
     await this.applySimpleCoverages(policyData);
     await this.applyCompAndColl(policyData);
+    await this.applyAddonValues(policyData);
+
     await this.refreshPrice();
   }
 
@@ -181,6 +229,8 @@ export class CoverageNavigator {
 
     await this.applySimpleCoverages(policyData);
     await this.applyCompAndColl(policyData);
+    await this.applyAddonValues(policyData);
+
     await this.refreshPrice();
 
     await this.proceedThenBackAndRestore(policyData);

@@ -1,3 +1,8 @@
+import xlsx from "xlsx";
+
+/**
+ * Safely get value from multiple possible keys
+ */
 function getValue(data, ...keys) {
   for (const key of keys) {
     if (data[key] !== undefined && data[key] !== null && data[key] !== "") {
@@ -8,31 +13,66 @@ function getValue(data, ...keys) {
 }
 
 /**
- * Normalize VehUse values for rater
+ * Normalize Vehicle Use for Rater
  */
 function normalizeVehUse(value) {
   if (!value) return "";
 
-  const v = value.toString().trim().toLowerCase();
+  const v = String(value).toLowerCase().trim();
 
-  if (v === "business") return "BusinessUse";
-  if (v === "artisan") return "Artisan";
-  if (v === "commute") return "Commute to work";
-  if (v === "farm") return "Farm";
-  if (v === "pleasure") return "Pleasure";
+  if (v.includes("business")) return "BusinessUse";
+
+  if (v.includes("artisan")) return "Artisan";
+
+  if (v.includes("commute")) return "Commute to work";
+
+  if (v.includes("pleasure")) return "Pleasure";
 
   return value;
 }
 
+/**
+ * Read Premium from generated Rater file
+ */
+export function getRaterPremium(raterFile) {
+  const wb = xlsx.readFile(raterFile);
+  const sheet = wb.Sheets["RateOrder"];
+
+  if (!sheet) {
+    console.log("RateOrder sheet not found");
+    return 0;
+  }
+
+  const cell = sheet["C125"];
+
+  const premium = Number(cell?.v || 0);
+
+  console.log("Captured Premium:", premium);
+
+  return premium;
+}
+
+/**
+ * Build Rater Data Object
+ */
 export function buildRaterData(policyData, index, totalPremium = "") {
   const vehUseInput = getValue(policyData, "VehUse");
 
-  // ⭐ Symbols (these go to Q76 / Q77 in rater)
   const compSymbol = getValue(policyData, "Comp(Symbol)**", "Comp(Symbol)");
   const collSymbol = getValue(policyData, "Coll(Symbol)**", "Coll(Symbol)");
 
+  // RR Limit + Duration
+  const rrLimit = getValue(policyData, "RR Limit");
+  const rrDuration = getValue(policyData, "RR Duration");
+
+  const rentalValue = rrLimit && rrDuration ? `${rrLimit}-${rrDuration}` : "";
+
+  const rsaVal = getValue(policyData, "RSA Val");
+
   return {
-    "TestCase No": getValue(policyData, "TC NO") || `TC00${index + 1}`,
+    "TestCase No":
+      getValue(policyData, "TC NO") ||
+      `TC${String(index + 1).padStart(3, "0")}`,
 
     ASM: getValue(policyData, "ASM**", "ASM"),
 
@@ -40,11 +80,13 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "License Type": getValue(policyData, "License Type**", "License Type"),
 
-    FullCoverage: getValue(policyData, "FullCoverage") || 0,
+    FullCoverage: Number(getValue(policyData, "FullCoverage")) || 0,
 
-    DriverCount: getValue(policyData, "DriverCount**", "DriverCount"),
+    DriverCount:
+      Number(getValue(policyData, "DriverCount**", "DriverCount")) || 1,
 
-    VehicleCount: getValue(policyData, "VehicleCount**", "VehicleCount"),
+    VehicleCount:
+      Number(getValue(policyData, "VehicleCount**", "VehicleCount")) || 1,
 
     VIN: getValue(policyData, "VIN*", "VIN"),
 
@@ -54,11 +96,11 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     Model: getValue(policyData, "Model*", "Model"),
 
-    // ⭐ SYMBOL VALUES (Q76 / Q77)
+    // SYMBOL VALUES
     Comp: Number(compSymbol) || 0,
     Coll: Number(collSymbol) || 0,
 
-    // ⭐ COVERAGE SELECTIONS (K52 / L52 etc)
+    // COVERAGE SELECTIONS
     UMBI: Number(getValue(policyData, "UMBI Selection")) || 0,
     UIMBI: Number(getValue(policyData, "UIMBI Selection")) || 0,
     MED: Number(getValue(policyData, "MEDPAY Selection")) || 0,
@@ -66,7 +108,7 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     UIMPD: Number(getValue(policyData, "UIMPD Selection")) || 0,
     PIP: Number(getValue(policyData, "PIPSection")) || 0,
 
-    // ⭐ VEHICLE COVERAGE (THIS FIXES YOUR K52 / L52 ISSUE)
+    // VEHICLE COVERAGE
     COMP:
       Number(
         getValue(policyData, "COMP", "Veh Comp Selection", "VehComp Selection"),
@@ -87,24 +129,28 @@ export function buildRaterData(policyData, index, totalPremium = "") {
         ? Number(getValue(policyData, "CollDeductible"))
         : 250,
 
-    // ⭐ ADD-ONS
+    // ADDONS
     "ROAD-SIDE": Number(getValue(policyData, "RSA Selection")) || 0,
+
     RENTAL: Number(getValue(policyData, "RR Selection")) || 0,
+
+    // ⭐ NEW FIELDS
+    RSALimit: rsaVal,
+
+    RentalValue: rentalValue,
 
     NonOwner: getValue(policyData, "NonOwner **", "NonOwner") === "Yes" ? 1 : 0,
 
-    SR22: getValue(policyData, "SR22") || 0,
+    SR22: Number(getValue(policyData, "SR22")) || 0,
 
-    Term: getValue(policyData, "TermLength"),
+    Term: Number(getValue(policyData, "TermLength")) || 6,
 
-    "Prior Coverage": getValue(policyData, "Prior Coverage") || 0,
+    "Prior Coverage": Number(getValue(policyData, "Prior Coverage")) || 0,
 
     "Multi-Car": getValue(policyData, "Multi-Car") || "N",
 
-    // ⭐ VEHICLE USE
     VehUse: normalizeVehUse(vehUseInput),
 
-    // ⭐ BUSINESS USE FLAGS
     "BusinessUse BI": vehUseInput === "Business" ? 1 : 0,
     "BusinessUse PD": vehUseInput === "Business" ? 1 : 0,
 
