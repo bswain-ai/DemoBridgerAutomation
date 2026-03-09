@@ -32,6 +32,7 @@ export class VehicleNavigator {
     });
   }
 
+  /*
   async searchVIN(vin) {
     const vinInput = this.page.locator(locators.vehicleVin);
     const searchVinButton = this.page.locator(locators.searchVinBtn);
@@ -53,7 +54,7 @@ export class VehicleNavigator {
 
       try {
         await loader
-          .waitFor({ state: "visible", timeout: 5000 })
+          .waitFor({ state: "visible", timeout: 50000 })
           .catch(() => {});
         await loader.waitFor({ state: "hidden", timeout: 60000 });
 
@@ -74,8 +75,26 @@ export class VehicleNavigator {
       }
     }
   }
+    */
+
+  async searchVIN(vin) {
+    const vinInput = this.page.locator(locators.vehicleVin);
+    const searchVinButton = this.page.locator(locators.searchVinBtn);
+    const makeField = this.page.locator(locators.filledMakeTextBox);
+
+    await vinInput.fill("");
+    await vinInput.type(vin.toString(), { delay: 300 });
+    await expect(searchVinButton).toBeEnabled({ timeout: 10000 });
+    await searchVinButton.click();
+    await expect(makeField).toBeVisible({ timeout: 30000 });
+
+  }
 
   async fillVehicleDetails(policyData) {
+    const mrspCost = this.page.locator(locators.vehicleCost);
+    await expect(mrspCost).toBeVisible({
+      timeout: 10000,
+    });
     await this.page
       .locator(locators.vehicleCost)
       .fill(policyData["Veh MSRP/Cost New"]?.toString() || "");

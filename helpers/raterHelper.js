@@ -43,7 +43,7 @@ export function getRaterPremium(raterFile) {
     return 0;
   }
 
-  const cell = sheet["C125"];
+  const cell = sheet["C97"];
 
   const premium = Number(cell?.v || 0);
 
@@ -151,6 +151,21 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "BusinessUse BI": vehUseInput === "Business" ? 1 : 0,
     "BusinessUse PD": vehUseInput === "Business" ? 1 : 0,
+
+    // ================= DRIVER / RISK =================
+
+    IsRenew: Number(getValue(policyData, "IsRenew")) || 0,
+
+    DaysInForce: Number(getValue(policyData, "DaysInForce")) || 0,
+
+    MajorViolation: Number(getValue(policyData, "MajorViolation")) || 0,
+
+    MinorViolation: Number(getValue(policyData, "MinorViolation")) || 0,
+
+    ChargableViolation: Number(getValue(policyData, "ChargableViolation")) || 0,
+
+    "Unacceptable Risk":
+      getValue(policyData, "Unacceptable Risk")?.trim() === "Yes" ? 1 : 0,
 
     Premium: totalPremium,
   };

@@ -31,7 +31,7 @@ export const locators = {
   searchVinBtn: `[data-test="search-by-vin-btn"]`,
   disabledSearchVinBtn: `//button[@disabled]`,
   filledMakeTextBox: `//label[@id='vehicle_make-label' and @data-shrink='true']`,
-  vehicleCost: `//input[@id='vehicle_msrp']`,
+  vehicleCost: `[data-test="f_vehicle_msrp"]`,
   vehicleUse: `[data-test="f_vehicle_use"]`,
   purchasedDate: `//input[@id='vehicle_purchased']`,
   purchasedStatus: `[data-test="f_vehicle_is_new"]`,

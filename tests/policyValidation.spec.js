@@ -125,6 +125,15 @@ test("Create Rater File and Calculate Premium", async () => {
       "BusinessUse PD": row["BusinessUse PD"],
 
       VehUse: row["VehUse"] || "",
+
+      // NEW FIELDS
+      IsRenew: row["IsRenew"],
+      DaysInForce: row["DaysInForce"],
+      
+      MajorViolation: row["MajorViolation"],
+      MinorViolation: row["MinorViolation"],
+      ChargableViolation: row["ChargableViolation"],
+      UnacceptableRisk: row["Unacceptable Risk"],
     };
 
     // =========================
