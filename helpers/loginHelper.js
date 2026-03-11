@@ -12,36 +12,48 @@ export async function login(page, role = "agent") {
     password: credentials.password,
   };
 
-  // Navigate once
-  await page.goto(credentials.baseUrl, { waitUntil: "networkidle" });
-
   for (let attempt = 0; attempt < 3; attempt++) {
     console.log(`Login Attempt ${attempt + 1}`);
 
     try {
+      // ================= GO TO BASE URL =================
+      await page.goto(credentials.baseUrl, { waitUntil: "networkidle" });
+
       // ================= PORTAL CLICK =================
       if (role === "agent") {
         const agentBtn = page.locator(locators.agentPortal);
 
         await expect(agentBtn).toBeVisible({ timeout: 20000 });
-        await expect(agentBtn).toBeEnabled({ timeout: 20000 });
         await agentBtn.click();
       } else {
-        await page
-          .locator(locators.underwriterPortal)
-          .waitFor({ timeout: 50000 });
-        await page.locator(locators.underwriterPortal).click();
+        const uwBtn = page.locator(locators.underwriterPortal);
+        await expect(uwBtn).toBeVisible({ timeout: 20000 });
+        await uwBtn.click();
       }
 
-      // ================= USERNAME =================
+      // ================= WAIT LOGIN FORM =================
       const userInput = page.locator(locators.userNameLoc);
-      await userInput.waitFor({ state: "visible", timeout: 50000 });
+
+      try {
+        await userInput.waitFor({ state: "visible", timeout: 10000 });
+      } catch {
+        console.log("Login page not loaded correctly. Reloading...");
+
+        await page.goto(credentials.baseUrl, { waitUntil: "networkidle" });
+
+        const agentBtn = page.locator(locators.agentPortal);
+        await expect(agentBtn).toBeVisible({ timeout: 20000 });
+        await agentBtn.click();
+
+        await userInput.waitFor({ state: "visible", timeout: 20000 });
+      }
+
+      // ================= ENTER USERNAME =================
       await userInput.clear();
       await userInput.fill(user.username);
 
-      // ================= PASSWORD =================
+      // ================= ENTER PASSWORD =================
       const passInput = page.locator(locators.passwordLoc);
-      await passInput.waitFor({ state: "visible" });
       await passInput.clear();
       await passInput.fill(user.password);
 
@@ -54,7 +66,7 @@ export async function login(page, role = "agent") {
       });
 
       console.log(`${role.toUpperCase()} login successful`);
-      return; // EXIT on success
+      return;
     } catch (error) {
       console.log("Login failed, retrying...");
 

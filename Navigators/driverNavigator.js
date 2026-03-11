@@ -21,9 +21,41 @@ export class DriverNavigator {
       .locator(locators.driverDOB)
       .fill(policyData.DriverDob.toString());
 
+    // ===============================
+    // License State (MUI Autocomplete)
+    // ===============================
+
+    const licenseState = policyData["License State"];
+
+    const licenseStateField = this.page.locator(locators.driverLicenseState);
+
+    await licenseStateField.waitFor({ state: "visible" });
+
+    await licenseStateField.click();
+
+    await licenseStateField.fill("");
+
+    await licenseStateField.type(licenseState, { delay: 100 });
+
+    const option = this.page.locator(
+      `//li[contains(text(),'${licenseState}')]`,
+    );
+
+    await option.waitFor({ state: "visible", timeout: 10000 });
+
+    await option.click();
+
+    // ===============================
+    // License Number
+    // ===============================
+
     await this.page
       .locator(locators.licenseTxtBox)
       .fill(policyData.LicenseNo.toString());
+
+    // ===============================
+    // License Status
+    // ===============================
 
     await this.page
       .locator(locators.driverLicenseStatus)
@@ -40,9 +72,16 @@ export class DriverNavigator {
     // ===============================
     // Handle Checkboxes
     // ===============================
+
     await this.handleSR22(policyData);
+
     await this.handleDefensiveDriver(policyData);
+
     await this.handleDrugDiscount(policyData);
+
+    // ===============================
+    // Occupation
+    // ===============================
 
     await this.page.locator(locators.driverOccupation).click();
 
@@ -50,17 +89,28 @@ export class DriverNavigator {
       .locator(locators.selectOccupation(policyData.DOccupation))
       .click();
 
-    await this.page
-      .locator(locators.driverSubmitBtn)
-      .click({ timeout: 10000 });
+    // ===============================
+    // Save Driver
+    // ===============================
+
+    await this.page.locator(locators.driverSubmitBtn).click({ timeout: 10000 });
+
+    // Wait for drawer to close
+    await this.page.waitForTimeout(1000);
+
+    // ===============================
+    // Continue Flow
+    // ===============================
 
     await this.page.locator(locators.nextButton).click({ timeout: 10000 });
+
     await this.page.locator(locators.nextButton).click({ timeout: 10000 });
   }
 
   // =========================================
   // SR22 Logic
   // =========================================
+
   async handleSR22(policyData) {
     const sr22Value = Number(policyData.SR22);
 
@@ -86,6 +136,7 @@ export class DriverNavigator {
   // =========================================
   // Defensive Driver Logic
   // =========================================
+
   async handleDefensiveDriver(policyData) {
     const defensiveValue = Number(policyData.DefensiveDriver);
 
@@ -95,7 +146,7 @@ export class DriverNavigator {
     }
 
     const defensiveCheckbox = this.page.locator(
-      locators.defensiveDriverCheckBox
+      locators.defensiveDriverCheckBox,
     );
 
     await expect(defensiveCheckbox).toBeVisible({ timeout: 10000 });
@@ -113,6 +164,7 @@ export class DriverNavigator {
   // =========================================
   // Drug Discount Logic
   // =========================================
+
   async handleDrugDiscount(policyData) {
     const drugValue = Number(policyData.DrugDiscount);
 
@@ -121,9 +173,7 @@ export class DriverNavigator {
       return;
     }
 
-    const drugCheckbox = this.page.locator(
-      locators.drugDiscountCheckBox
-    );
+    const drugCheckbox = this.page.locator(locators.drugDiscountCheckBox);
 
     await expect(drugCheckbox).toBeVisible({ timeout: 10000 });
 

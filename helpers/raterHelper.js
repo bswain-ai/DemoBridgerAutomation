@@ -13,22 +13,17 @@ function getValue(data, ...keys) {
 }
 
 /**
- * Normalize Vehicle Use for Rater
+ * Normalize Vehicle Use
+ * Only convert Business -> BusinessUse
  */
 function normalizeVehUse(value) {
   if (!value) return "";
 
-  const v = String(value).toLowerCase().trim();
+  const v = String(value).trim();
 
-  if (v.includes("business")) return "BusinessUse";
+  if (v === "Business") return "BusinessUse";
 
-  if (v.includes("artisan")) return "Artisan";
-
-  if (v.includes("commute")) return "Commute to work";
-
-  if (v.includes("pleasure")) return "Pleasure";
-
-  return value;
+  return v;
 }
 
 /**
@@ -44,7 +39,6 @@ export function getRaterPremium(raterFile) {
   }
 
   const cell = sheet["C97"];
-
   const premium = Number(cell?.v || 0);
 
   console.log("Captured Premium:", premium);
@@ -61,13 +55,21 @@ export function buildRaterData(policyData, index, totalPremium = "") {
   const compSymbol = getValue(policyData, "Comp(Symbol)**", "Comp(Symbol)");
   const collSymbol = getValue(policyData, "Coll(Symbol)**", "Coll(Symbol)");
 
-  // RR Limit + Duration
   const rrLimit = getValue(policyData, "RR Limit");
   const rrDuration = getValue(policyData, "RR Duration");
 
   const rentalValue = rrLimit && rrDuration ? `${rrLimit}-${rrDuration}` : "";
 
   const rsaVal = getValue(policyData, "RSA Val");
+
+  // ================= NEW LEARNERS PERMIT LOGIC =================
+  const learnersPermitValue = getValue(
+    policyData,
+    "Does any driver have a learner’s permit?",
+  );
+
+  const learnersPermit =
+    String(learnersPermitValue).trim().toLowerCase() === "yes" ? 1 : 0;
 
   return {
     "TestCase No":
@@ -94,11 +96,13 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     Model: getValue(policyData, "Model*", "Model"),
 
-    // SYMBOL VALUES
+    // ================= SYMBOL VALUES =================
+
     Comp: Number(compSymbol) || 0,
     Coll: Number(collSymbol) || 0,
 
-    // COVERAGE SELECTIONS
+    // ================= COVERAGE SELECTIONS =================
+
     UMBI: Number(getValue(policyData, "UMBI Selection")) || 0,
     UIMBI: Number(getValue(policyData, "UIMBI Selection")) || 0,
     MED: Number(getValue(policyData, "MEDPAY Selection")) || 0,
@@ -106,7 +110,8 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     UIMPD: Number(getValue(policyData, "UIMPD Selection")) || 0,
     PIP: Number(getValue(policyData, "PIPSection")) || 0,
 
-    // VEHICLE COVERAGE
+    // ================= VEHICLE COVERAGE =================
+
     COMP:
       Number(
         getValue(policyData, "COMP", "Veh Comp Selection", "VehComp Selection"),
@@ -127,30 +132,31 @@ export function buildRaterData(policyData, index, totalPremium = "") {
         ? Number(getValue(policyData, "CollDeductible"))
         : 250,
 
-    // ADDONS
-    "ROAD-SIDE": Number(getValue(policyData, "RSA Selection")) || 0,
+    // ================= ADDONS =================
 
+    "ROAD-SIDE": Number(getValue(policyData, "RSA Selection")) || 0,
     RENTAL: Number(getValue(policyData, "RR Selection")) || 0,
 
-    // ⭐ NEW FIELDS
     RSALimit: rsaVal,
-
     RentalValue: rentalValue,
+
+    // ================= FLAGS =================
 
     NonOwner: getValue(policyData, "NonOwner **", "NonOwner") === "Yes" ? 1 : 0,
 
     SR22: Number(getValue(policyData, "SR22")) || 0,
+
     DefensiveDriver: Number(policyData["DefensiveDriver"]) || 0,
+
     DrugDiscount: Number(policyData["DrugDiscount"]) || 0,
 
     Term: Number(getValue(policyData, "TermLength")) || 6,
 
     "Prior Coverage": Number(getValue(policyData, "Prior Coverage")) || 0,
 
-    VehUse: normalizeVehUse(vehUseInput),
+    // ================= VEHICLE USE =================
 
-    "BusinessUse BI": vehUseInput === "Business" ? 1 : 0,
-    "BusinessUse PD": vehUseInput === "Business" ? 1 : 0,
+    VehUse: normalizeVehUse(vehUseInput),
 
     // ================= DRIVER / RISK =================
 
@@ -163,6 +169,12 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     MinorViolation: Number(getValue(policyData, "MinorViolation")) || 0,
 
     ChargableViolation: Number(getValue(policyData, "ChargableViolation")) || 0,
+
+    // ================= LEARNERS PERMIT =================
+
+    LearnersPermit: learnersPermit,
+
+    // ================= UW FLAG =================
 
     "Unacceptable Risk":
       getValue(policyData, "Unacceptable Risk")?.trim() === "Yes" ? 1 : 0,

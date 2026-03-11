@@ -28,6 +28,8 @@ $nonOwnerValue = if ($data.NonOwner -eq 1) { "Yes" } else { "No" }
 $sr22Value = if ($data.SR22 -eq 1) { "Yes" } else { "No" }
 $defensiveDriverValue = if ($data.DefensiveDriver -eq 1) { "Y" } else { "N" }
 $drugDiscountValue = if ($data.DrugDiscount -eq 1) { "Y" } else { "N" }
+$unacceptableRiskValue = if ($data.'Unacceptable Risk' -eq 1) { "Y" } else { "N" }
+$learnersPermitValue = if ($data.LearnersPermit -eq 1) { "Y" } else { "N" }
 
 
 # ================= BASIC POLICY INPUT =================
@@ -68,6 +70,14 @@ $rate.Range("Q72").Value2 = [int]$data.'Prior Coverage'
 Write-Host "Setting vehicle use..."
 
 $rate.Range("Q74").Value2 = "$($data.VehUse)"
+
+# ================= DRIVER / RISK =================
+
+$rate.Range("Q76").Value2 = [int]$data.IsRenew
+$rate.Range("Q77").Value2 = [int]$data.DaysInForce
+$rate.Range("Q78").Value2 = [int]$data.MajorViolation
+$rate.Range("Q79").Value2 = [int]$data.MinorViolation
+$rate.Range("Q80").Value2 = [int]$data.ChargableViolation
 
 
 # ================= SELECT ROW VALUES =================
@@ -125,6 +135,8 @@ Write-Host "Writing driver discounts..."
 
 $rate.Range("Q82").Value2 = $defensiveDriverValue
 $rate.Range("Q83").Value2 = $drugDiscountValue
+$rate.Range("Q84").Value2 = $unacceptableRiskValue
+$rate.Range("Q81").Value2 = $learnersPermitValue
 
 # ================= CALCULATE =================
 

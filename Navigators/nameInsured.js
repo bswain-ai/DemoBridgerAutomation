@@ -8,13 +8,12 @@ export class NameInsuredNavigator {
   }
 
   // ==================================================
-  // Ultimate Safe Click
+  // Safe Click
   // ==================================================
   async safeClick(locator, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const element =
-          (await locator.count()) > 1 ? locator.first() : locator;
+        const element = (await locator.count()) > 1 ? locator.first() : locator;
 
         await this.page
           .locator(".MuiBackdrop-root")
@@ -42,63 +41,89 @@ export class NameInsuredNavigator {
   }
 
   // ==================================================
-  // Recovery: Re-login & Retry
+  // Named Owner Questions
   // ==================================================
-  async recoverAndRetryNewSubmission(policyData) {
-    console.log("⚠ Recovering by re-login...");
+  async namedOwnerQuestions(policyData) {
+    const namedOwnerValue = String(
+      policyData["Submission for a Named Owner policy?"] || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    // wait for radio section to appear
+    await this.page
+      .locator(locators.namedOwnerYes)
+      .waitFor({ state: "visible", timeout: 50000 });
+
+    if (namedOwnerValue === "no") {
+      // only click when No is required
+      await this.safeClick(this.page.locator(locators.namedOwnerNo));
+
+      console.log("Named Owner = NO");
+
+      // second question appears
+      await this.page
+        .locator(locators.vehicleRegisteredNo)
+        .waitFor({ state: "visible", timeout: 50000 });
+
+      await this.safeClick(this.page.locator(locators.vehicleRegisteredNo));
+
+      console.log("Vehicle Registered = NO");
+    } else {
+      console.log("Named Owner = YES (default selected)");
+    }
+  }
+
+  // ==================================================
+  // Retry New Submission
+  // ==================================================
+  async retryNewSubmission(policyData, insuredData) {
+    console.log("Recovering by re-login...");
 
     await this.page.goto(process.env.BASE_URL);
 
     await login(this.page);
 
-    await expect(
-      this.page.locator(locators.dashboardHome)
-    ).toBeVisible({ timeout: 60000 });
+    await expect(this.page.locator(locators.dashboardHome)).toBeVisible({
+      timeout: 60000,
+    });
 
     console.log("Re-login successful. Retrying New Submission...");
 
-    const newSubmissionBtn =
-      this.page.locator(locators.newSubmissionBtn).first();
-
-    await this.safeClick(newSubmissionBtn);
-
-    await expect(
-      this.page.locator(locators.selectState)
-    ).toBeVisible({ timeout: 60000 });
-
-    await this.page.selectOption(locators.selectState, {
-      label: policyData.State,
-    });
-
-    await this.page.selectOption(locators.selectProgram, {
-      label: policyData.Program,
-    });
+    await this.startNewSubmission(policyData, insuredData);
   }
 
   // ==================================================
-  // Start New Submission (With Recovery)
+  // Start New Submission
   // ==================================================
-  async startNewSubmission(policyData) {
-    const newSubmissionBtn =
-      this.page.locator(locators.newSubmissionBtn).first();
+  async startNewSubmission(policyData, insuredData) {
+    await expect(this.page.locator(locators.quoteList).first()).toBeVisible({
+      timeout: 60000,
+    });
+
+    const newSubmissionBtn = this.page
+      .locator(locators.newSubmissionBtn)
+      .first();
 
     try {
       await this.safeClick(newSubmissionBtn);
-
-      await expect(
-        this.page.locator(locators.selectState)
-      ).toBeVisible({ timeout: 60000 });
-
     } catch (error) {
-      console.log("❌ New Submission failed. Attempting recovery...");
-      await this.recoverAndRetryNewSubmission(policyData);
+      console.log("New Submission failed. Attempting recovery...");
+      await this.retryNewSubmission(policyData, insuredData);
       return;
     }
 
-    // If first attempt succeeded, continue normally
+    // ===============================
+    // State
+    // ===============================
+
     await this.page.selectOption(locators.selectState, {
       label: policyData.State,
     });
+
+    // ===============================
+    // Program
+    // ===============================
 
     await this.page.selectOption(locators.selectProgram, {
       label: policyData.Program,
@@ -107,38 +132,59 @@ export class NameInsuredNavigator {
     // ===============================
     // Effective Date
     // ===============================
+
     if (policyData.EffectiveDate) {
-      const effectiveDate = policyData.EffectiveDate
-        .toString()
-        .replace(/-/g, "/");
+      const effectiveDate = policyData.EffectiveDate.toString().replace(
+        /-/g,
+        "/",
+      );
 
       const dateField = this.page.locator(locators.effectiveDate);
 
-      await expect(dateField).toBeVisible({ timeout: 20000 });
+      await expect(dateField).toBeVisible({ timeout: 50000 });
 
       await dateField.fill("");
       await dateField.type(effectiveDate);
+
       await this.page.keyboard.press("Tab");
 
       console.log("Effective Date entered:", effectiveDate);
     }
 
-    await this.page.selectOption(
-      locators.selectTerm,
-      policyData.TermLength.toString()
-    );
-  }
+    // ===============================
+    // First Name
+    // ===============================
 
-  // ==================================================
-  // Fill Name Details
-  // ==================================================
-  async fillNameDetails(firstName, lastName) {
     await expect(this.page.locator(locators.fName)).toBeVisible({
-      timeout: 20000,
+      timeout: 50000,
     });
 
-    await this.page.locator(locators.fName).fill(firstName);
-    await this.page.locator(locators.lName).fill(lastName);
+    await this.page.locator(locators.fName).fill(insuredData.firstName);
+
+    // ===============================
+    // Last Name
+    // ===============================
+
+    await this.page.locator(locators.lName).fill(insuredData.lastName);
+
+    // ===============================
+    // Term Length
+    // ===============================
+
+    await this.page.selectOption(
+      locators.selectTerm,
+      policyData.TermLength.toString(),
+    );
+
+    // ===============================
+    // Named Owner Questions
+    // ===============================
+
+    await this.namedOwnerQuestions(policyData);
+
+    // ===============================
+    // Continue
+    // ===============================
 
     await this.safeClick(this.page.locator(locators.continueBtn));
   }
@@ -148,7 +194,7 @@ export class NameInsuredNavigator {
   // ==================================================
   async fillContactDetails(phone, email) {
     await expect(this.page.locator(locators.cellPhone)).toBeVisible({
-      timeout: 20000,
+      timeout: 50000,
     });
 
     await this.page.fill(locators.cellPhone, phone);
@@ -161,14 +207,8 @@ export class NameInsuredNavigator {
   // Complete Flow
   // ==================================================
   async completeNamedInsured(policyData, insuredData) {
-    await this.startNewSubmission(policyData);
-    await this.fillNameDetails(
-      insuredData.firstName,
-      insuredData.lastName
-    );
-    await this.fillContactDetails(
-      insuredData.phone,
-      insuredData.email
-    );
+    await this.startNewSubmission(policyData, insuredData);
+
+    await this.fillContactDetails(insuredData.phone, insuredData.email);
   }
 }

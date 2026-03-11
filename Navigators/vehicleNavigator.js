@@ -87,7 +87,6 @@ export class VehicleNavigator {
     await expect(searchVinButton).toBeEnabled({ timeout: 10000 });
     await searchVinButton.click();
     await expect(makeField).toBeVisible({ timeout: 30000 });
-
   }
 
   async fillVehicleDetails(policyData) {
@@ -116,6 +115,14 @@ export class VehicleNavigator {
     await this.page
       .locator(locators.damageStatus)
       .selectOption({ label: policyData.VehDamage });
+
+    const salvageValue = Number(policyData["Salvage"]) || 0;
+
+    if (salvageValue === 1) {
+      await this.page.getByText("Yes", { exact: true }).click();
+    } else {
+      await this.page.getByText("No", { exact: true }).click();
+    }
   }
 
   async openFirstVehicleDetails() {

@@ -4,6 +4,7 @@ export const locators = {
   passwordLoc: `//input[@id='password']`,
   submitButton: `//button[@type='submit']`,
   bridgerLogo: `//img[@alt='App-bar-logo']`,
+  quoteList: `[data-test="quoteList"]`,
   newSubmissionBtn: `//button[normalize-space()='New Submission']`,
   stateDropdown: `//button[normalize-space()='New Submission']`,
   selectState: `#pol_issued_state`,
@@ -11,11 +12,15 @@ export const locators = {
   selectProgram: `#pol_lob`,
   effectiveDate: `#startTime`,
   selectTerm: `#pol_term`,
+  
+  // ================= Named Owner Questions =================
+
+  namedOwnerYes: '[data-test="f_pol_vehicle_owner_type_true"]',
+  namedOwnerNo: '[data-test="f_pol_vehicle_owner_type_false"]',
+  vehicleRegisteredNo: '[data-test="f_pol_vehicle_regular_access_false"]',
+
   fName: `[data-test="f_firstName"]`,
   lName: `[data-test="f_lastName"]`,
-  ownerTypeYes: `[data-test="f_pol_vehicle_owner_type_true"]`,
-  ownerTypeNo: `[data-test="f_pol_vehicle_owner_type_false"]`,
-  vehicleAccessNo: `[data-test="f_pol_vehicle_regular_access_false"]`,
   continueBtn: `[data-test="dialogActions-continue-btn"]`,
   cellPhone: `//input[@id='pol_insured_cell_phone']`,
   emailid: `//input[@id='pol_insured_email']`,
@@ -36,6 +41,8 @@ export const locators = {
   purchasedDate: `//input[@id='vehicle_purchased']`,
   purchasedStatus: `[data-test="f_vehicle_is_new"]`,
   damageStatus: `[data-test="f_vehicle_damage"]`,
+  vehicleSalvageYes: '[data-test="vehicle_salvaged_true"]',
+  vehicleSalvageNo: '[data-test="vehicle_salvaged_false"]',
   saveButton: `//button[normalize-space()='Save']`,
   addedVehicle: (vin) => `//span[text()='${vin}']`,
   nextButton: `[data-test="next-btn"]`,
@@ -44,6 +51,7 @@ export const locators = {
   driverGender: `#driver_gender`,
   driverMaritalStatus: `[data-test="f_driver_marital_status"]`,
   driverDOB: `[data-test="f_driver_dob"]`,
+  driverLicenseState: '[data-test="f_driver_license_state"]',
   driverLicenseStatus: `[data-test="f_driver_license_status"]`,
   driverLicenseYears: `//input[@id='driver_license_years']`,
   driverLicenseMonths: `//input[@id='driver_license_month']`,
@@ -56,7 +64,7 @@ export const locators = {
     `//ul[@id='driver_occupation-listbox']/li[contains(text(),'${occupation}')]`,
   driverSubmitBtn: `[data-test="driver-drawer-submit"]`,
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
-  
+
   // =========================================  Coverage Page  ===============================
   coveragePage: `//h5[normalize-space()='Coverages']`,
   pipToggle:
@@ -83,7 +91,7 @@ export const locators = {
     '[data-test="coverage-item-switch-Rental Reimbursement-0"] input[type="checkbox"]',
 
   roadsideToggle:
-  '[data-test="coverage-item-switch-Roadside Assistance-0"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Roadside Assistance-0"] input[type="checkbox"]',
 
   rrLimit: '[data-test="coverage-item-limit-Rental Reimbursement-0"]',
   rrDuration: '[data-test="coverage-item-deductible-Rental Reimbursement-0"]',
@@ -97,7 +105,7 @@ export const locators = {
   collDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
   premiumValue: `[data-test='premium-summary-price-0']`,
   paymentOptions: `//h5[normalize-space()='Payment Options']`,
-  
+
   // ============================== Coverage Details ==============================
   compText: `//td[text()='Other than Collision']`,
   collText: `//td[text()='Collision']`,
@@ -106,12 +114,12 @@ export const locators = {
   proceedQuoteBtn: `//button[@type='button'][normalize-space()='Proceed to Quote']`,
   disabledProceedBtn: `//button[@data-test='refresh-price-btn']/following-sibling::span/button[@disabled]`,
   validateEligibilityBtn: `//button[@type='submit']`,
-  
-  //=================== UnderWriter Page ================================= 
+
+  //=================== UnderWriter Page =================================
   uwQueryPage: `//h5[normalize-space()='Underwriting/Eligibility Questions']`,
   uuwRadio: (id, value) =>
-  `xpath=//*[@id="${id}"]//input[@type="radio" and @value="${value}"]`,
-  
+    `xpath=//*[@id="${id}"]//input[@type="radio" and @value="${value}"]`,
+
   //============================== Payment and Signing Details ==================================
   paymentSigningDetails: `//h5[normalize-space()='Payment and Signing Details']`,
   checkNumberTextBox: `//input[@id='pol_payment_check_number']`,
@@ -129,7 +137,7 @@ export const locators = {
   modal: `//div[@class='MuiBox-root mui-wvmse7']`,
   AuthText: `//h6[text()='Authentication']`,
   purchaseButton: `//button[text()='Proceed with Purchase']`,
-  
+
   // ===============================  Success Page After Policy Creation  ================================
   successPolicyMsg: `//h5[contains(text(),'successfully purchased the policy.')]`,
   policyNumber: `//div[span[text()='Policy Number']]/following-sibling::div/span`,
@@ -138,12 +146,12 @@ export const locators = {
   paymentPlan: `//div[span[text()='Payment Plan']]/following-sibling::div/span`,
   totalPremium: `//div[span[text()='Premium Total']]/following-sibling::div/span`,
   policyPageBtn: `//button[@data-test='go-to-policy-page-btn']`,
-  
+
   // =================================== Policy Summary Page ============================
   coverageSummaryBtn: `//button[@data-test='tab_coverage_summary']`,
   vehiclesBtn: `//span[text()='Vehicles']`,
   addedfirstVehicle: `div[role='cell'] button span`,
-  
+
   // ================================== Coverage Summary Page =============================
   BiLimit: `//div[h5[text()='Coverage Summary']]/following-sibling::div[1]//tr[2]/td[4]`,
   BiPremium: `[data-test="coverage-premium-0-BI"]`,
@@ -153,9 +161,9 @@ export const locators = {
   PipPremium: `[data-test="coverage-premium-0-PIP"]`,
   medpayPremium: `[data-test="coverage-premium-0-MEDPAY"]`,
   umbiPremium: `[data-test="coverage-premium-0-UMBI"]`,
-  uimbiPremium:  `[data-test="coverage-premium-0-UIMBI"]`,
-  umpdPremium:  `[data-test="coverage-premium-0-UMPD"]`,
-  uimpdPremium:  `[data-test="coverage-premium-0-UIMPD"]`,
+  uimbiPremium: `[data-test="coverage-premium-0-UIMBI"]`,
+  umpdPremium: `[data-test="coverage-premium-0-UMPD"]`,
+  uimpdPremium: `[data-test="coverage-premium-0-UIMPD"]`,
   compPremium: `[data-test="coverage-premium-0-Other than Collision"]`,
   collPremium: `[data-test="coverage-premium-0-Collision"]`,
   rentalPremium: `[data-test="coverage-premium-0-Rental Reimbursement"]`,
