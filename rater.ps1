@@ -30,6 +30,7 @@ $defensiveDriverValue = if ($data.DefensiveDriver -eq 1) { "Y" } else { "N" }
 $drugDiscountValue = if ($data.DrugDiscount -eq 1) { "Y" } else { "N" }
 $unacceptableRiskValue = if ($data.'Unacceptable Risk' -eq 1) { "Y" } else { "N" }
 $learnersPermitValue = if ($data.LearnersPermit -eq 1) { "Y" } else { "N" }
+$rolloverDiscountValue = if ($data.'Rollover Discount' -eq 1) { "Y" } else { "N" }
 
 
 # ================= BASIC POLICY INPUT =================
@@ -50,6 +51,7 @@ $rate.Range("Q64").Value2 = "$($data.Model)"
 
 
 # ================= SYMBOL VALUES =================
+
 Write-Host "Writing Comp/Coll symbols..."
 
 $rate.Range("Q66").Value2 = [int]$data.CompSymbol
@@ -70,6 +72,7 @@ $rate.Range("Q72").Value2 = [int]$data.'Prior Coverage'
 Write-Host "Setting vehicle use..."
 
 $rate.Range("Q74").Value2 = "$($data.VehUse)"
+
 
 # ================= DRIVER / RISK =================
 
@@ -117,6 +120,7 @@ else {
     $rate.Range("L46").Value2 = 250
 }
 
+
 # ================= ADDONS =================
 
 Write-Host "Writing RSA and Rental..."
@@ -129,6 +133,7 @@ if ($null -ne $data.RentalValue -and $data.RentalValue -ne "") {
     $rate.Range("N46").Value2 = "$($data.RentalValue)"
 }
 
+
 # ================= DRIVER DISCOUNTS =================
 
 Write-Host "Writing driver discounts..."
@@ -137,6 +142,8 @@ $rate.Range("Q82").Value2 = $defensiveDriverValue
 $rate.Range("Q83").Value2 = $drugDiscountValue
 $rate.Range("Q84").Value2 = $unacceptableRiskValue
 $rate.Range("Q81").Value2 = $learnersPermitValue
+$rate.Range("Q88").Value2 = $rolloverDiscountValue
+
 
 # ================= CALCULATE =================
 

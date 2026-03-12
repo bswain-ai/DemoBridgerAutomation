@@ -62,7 +62,8 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
   const rsaVal = getValue(policyData, "RSA Val");
 
-  // ================= NEW LEARNERS PERMIT LOGIC =================
+  // ================= LEARNERS PERMIT =================
+
   const learnersPermitValue = getValue(
     policyData,
     "Does any driver have a learner’s permit?",
@@ -70,6 +71,13 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
   const learnersPermit =
     String(learnersPermitValue).trim().toLowerCase() === "yes" ? 1 : 0;
+
+  // ================= ROLLOVER DISCOUNT =================
+
+  const rolloverDiscountValue = getValue(policyData, "Rollover Discount");
+
+  const rolloverDiscount =
+    String(rolloverDiscountValue).trim().toLowerCase() === "yes" ? 1 : 0;
 
   return {
     "TestCase No":
@@ -135,9 +143,11 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     // ================= ADDONS =================
 
     "ROAD-SIDE": Number(getValue(policyData, "RSA Selection")) || 0,
+
     RENTAL: Number(getValue(policyData, "RR Selection")) || 0,
 
     RSALimit: rsaVal,
+
     RentalValue: rentalValue,
 
     // ================= FLAGS =================
@@ -178,6 +188,10 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "Unacceptable Risk":
       getValue(policyData, "Unacceptable Risk")?.trim() === "Yes" ? 1 : 0,
+
+    // ================= ROLLOVER DISCOUNT =================
+
+    "Rollover Discount": rolloverDiscount,
 
     Premium: totalPremium,
   };

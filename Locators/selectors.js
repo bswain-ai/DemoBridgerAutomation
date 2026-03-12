@@ -1,8 +1,14 @@
 export const locators = {
+
+  // ==================== Login Portal ======================
+
   agentPortal: `//button[normalize-space()='Agent Portal']`,
   userNameLoc: `//input[@id='username']`,
   passwordLoc: `//input[@id='password']`,
   submitButton: `//button[@type='submit']`,
+
+  // ==================== Submission Page ====================
+
   bridgerLogo: `//img[@alt='App-bar-logo']`,
   quoteList: `[data-test="quoteList"]`,
   newSubmissionBtn: `//button[normalize-space()='New Submission']`,
@@ -18,15 +24,18 @@ export const locators = {
   namedOwnerYes: '[data-test="f_pol_vehicle_owner_type_true"]',
   namedOwnerNo: '[data-test="f_pol_vehicle_owner_type_false"]',
   vehicleRegisteredNo: '[data-test="f_pol_vehicle_regular_access_false"]',
-
   fName: `[data-test="f_firstName"]`,
   lName: `[data-test="f_lastName"]`,
   continueBtn: `[data-test="dialogActions-continue-btn"]`,
   cellPhone: `//input[@id='pol_insured_cell_phone']`,
   emailid: `//input[@id='pol_insured_email']`,
   nextBtn: `//button[@type='submit']`,
+
+  // ================== Address Details ========================
   streetAddress: `[data-test="f_pol_insured_garaging_address_street"]`,
   selectaddress: "//li[1]/div/p",
+
+  // ================== Vehicle Details ========================
   addVehicleBtn: `[data-test="add-vehicle-button"]`,
   vehicleYear: `[data-test="f_vehicle_year"]`,
   selectYear: (year) => `//li[text()='${year}']`,
@@ -46,6 +55,9 @@ export const locators = {
   saveButton: `//button[normalize-space()='Save']`,
   addedVehicle: (vin) => `//span[text()='${vin}']`,
   nextButton: `[data-test="next-btn"]`,
+
+  // ================== Driver Details ===========================
+
   insuredRated: `//span[contains(text(),'Insured,')]`,
   updateDriver: `//span[normalize-space()='Update']`,
   driverGender: `#driver_gender`,
@@ -65,7 +77,10 @@ export const locators = {
   driverSubmitBtn: `[data-test="driver-drawer-submit"]`,
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
 
-  // =========================================  Coverage Page  ===============================
+  // ============================== Violation Details =============================
+  
+
+  // =========================================  Coverage Details  ===============================
   coveragePage: `//h5[normalize-space()='Coverages']`,
   pipToggle:
     '[data-test="coverage-item-switch-Personal Injury Protection (PIP)"] input[type="checkbox"]',
@@ -104,9 +119,10 @@ export const locators = {
   compDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
   collDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
   premiumValue: `[data-test='premium-summary-price-0']`,
-  paymentOptions: `//h5[normalize-space()='Payment Options']`,
 
-  // ============================== Coverage Details ==============================
+  // ============================== Payment Option Details ==============================
+
+  paymentOptions: `//h5[normalize-space()='Payment Options']`,
   compText: `//td[text()='Other than Collision']`,
   collText: `//td[text()='Collision']`,
   pipText: `//td[text()='PIP']`,
@@ -115,7 +131,7 @@ export const locators = {
   disabledProceedBtn: `//button[@data-test='refresh-price-btn']/following-sibling::span/button[@disabled]`,
   validateEligibilityBtn: `//button[@type='submit']`,
 
-  //=================== UnderWriter Page =================================
+  //=================== UnderWriter Details ======================================
   uwQueryPage: `//h5[normalize-space()='Underwriting/Eligibility Questions']`,
   uuwRadio: (id, value) =>
     `xpath=//*[@id="${id}"]//input[@type="radio" and @value="${value}"]`,
