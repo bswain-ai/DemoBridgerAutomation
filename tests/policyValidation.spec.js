@@ -23,9 +23,13 @@ test("Create Rater File and Calculate Premium", async () => {
   const raterSheet = wb.Sheets["Output_RaterPremium"];
   const uiSheet = wb.Sheets["Output_PolicyUIPremium"];
 
-  const rows = xlsx.utils.sheet_to_json(raterSheet);
+  if (!raterSheet) {
+    throw new Error("Sheet Output_RaterPremium not found");
+  }
 
-  console.log("Headers in Output_RaterPremium:", Object.keys(rows[0]));
+  const rows = xlsx.utils.sheet_to_json(raterSheet, { defval: "" });
+
+  console.log("Headers in Output_RaterPremium:", Object.keys(rows[0] || {}));
   console.log("Rows Found:", rows.length);
 
   // =========================
@@ -39,6 +43,16 @@ test("Create Rater File and Calculate Premium", async () => {
 
   if (!fs.existsSync(raterFolder)) {
     fs.mkdirSync(raterFolder, { recursive: true });
+  }
+
+  console.log("Rater Output Folder:", raterFolder);
+
+  // =========================
+  // Validate Rater Template
+  // =========================
+
+  if (!fs.existsSync(credentials.raterFile)) {
+    throw new Error(`Rater template not found: ${credentials.raterFile}`);
   }
 
   // =========================
@@ -65,93 +79,84 @@ test("Create Rater File and Calculate Premium", async () => {
       `${testCaseId}_${policyNumber}.xlsx`,
     );
 
+    console.log("Creating Rater File:", newRaterFile);
+
     fs.copyFileSync(credentials.raterFile, newRaterFile);
+
+    if (!fs.existsSync(newRaterFile)) {
+      throw new Error("Failed to create rater file");
+    }
 
     // =========================
     // Payload
     // =========================
 
     const payload = {
-      ASM: row["ASM"],
-      Zip: row["Garage Zip"],
-      LicenseType: row["License Type"],
+      // DRIVER INFORMATION
+      "Effective Date": row["Effective Date"] || "",
+      "Driver DOB": row["Driver DOB"] || "",
+      "Driver Gender": row["Driver Gender"] || "",
+      "License State": row["License State"] || "",
+      "License Status": row["License Status"] || "",
 
-      FullCoverage: row["FullCoverage"],
-      DriverCount: row["DriverCount"],
-      VehicleCount: row["VehicleCount"],
+      // BASIC POLICY
+      Zip: row["Garage Zip"] || "",
+      LicenseType: row["License Type"] || "",
 
-      VIN: row["VIN"],
-      Year: row["Year"],
-      Make: row["Make"],
-      Model: row["Model"],
+      DriverCount: Number(row["DriverCount"]) || 1,
+      VehicleCount: Number(row["VehicleCount"]) || 1,
+
+      VIN: row["VIN"] || "",
+      Year: row["Year"] || "",
+      Make: row["Make"] || "",
+      Model: row["Model"] || "",
 
       // SYMBOLS
-      CompSymbol: row["Comp"],
-      CollSymbol: row["Coll"],
+      CompSymbol: Number(row["Comp"]) || 0,
+      CollSymbol: Number(row["Coll"]) || 0,
 
-      // LIABILITY COVERAGES
-      UMBI: row["UMBI"] || 0,
-      UIMBI: row["UIMBI"] || 0,
-      MED: row["MED"] || 0,
-      UMPD: row["UMPD"] || 0,
-      UIMPD: row["UIMPD"] || 0,
-      PIP: row["PIP"] || 0,
+      // LIABILITY
+      UMBI: Number(row["UMBI"]) || 0,
+      UIMBI: Number(row["UIMBI"]) || 0,
+      MED: Number(row["MED"]) || 0,
+      UMPD: Number(row["UMPD"]) || 0,
+      UIMPD: Number(row["UIMPD"]) || 0,
+      PIP: Number(row["PIP"]) || 0,
 
       // VEHICLE COVERAGE
-      CompFlag: row["COMP"],
-      CollFlag: row["COLL"],
+      CompFlag: Number(row["COMP"]) === 1 ? 1 : 0,
+      CollFlag: Number(row["COLL"]) === 1 ? 1 : 0,
 
-      CompDed: row["CompDed"],
-      CollDed: row["CollDed"],
+      CompDed: row["CompDed"] || 250,
+      CollDed: row["CollDed"] || 250,
 
-      // ADDONS (Correct Columns)
-      RoadSide: row["ROAD-SIDE"] || 0,
-      Rental: row["RENTAL"] || 0,
+      // ADDONS
+      RoadSide: Number(row["ROAD-SIDE"]) || 0,
+      Rental: Number(row["RENTAL"]) || 0,
 
-      // ACTUAL VALUES
       RSALimit: row["RSALimit"] || 0,
       RentalValue: row["RentalValue"] || "",
 
-      NonOwner: row["NonOwner"],
-      SR22: row["SR22"],
+      // FLAGS
+      NonOwner: row["NonOwner"] || 0,
+      SR22: row["SR22"] || 0,
       DefensiveDriver: row["DefensiveDriver"] || 0,
       DrugDiscount: row["DrugDiscount"] || 0,
 
-      Term: row["Term"],
-      "Prior Coverage": row["Prior Coverage"],
-      "Multi-Car": row["Multi-Car"],
-
-      "BusinessUse BI": row["BusinessUse BI"],
-      "BusinessUse PD": row["BusinessUse PD"],
+      Term: row["Term"] || 6,
+      "Prior Coverage": row["Prior Coverage"] || 0,
 
       VehUse: row["VehUse"] || "",
 
-      // NEW FIELDS
-      IsRenew: row["IsRenew"],
-      DaysInForce: row["DaysInForce"],
-      
-      MajorViolation: row["MajorViolation"],
-      MinorViolation: row["MinorViolation"],
-      ChargableViolation: row["ChargableViolation"],
-      UnacceptableRisk: row["Unacceptable Risk"],
+      // DRIVER RISK
+      IsRenew: row["IsRenew"] || 0,
+      DaysInForce: row["DaysInForce"] || 0,
+      MajorViolation: row["MajorViolation"] || 0,
+      MinorViolation: row["MinorViolation"] || 0,
+      ChargableViolation: row["ChargableViolation"] || 0,
+
+      "Unacceptable Risk": row["Unacceptable Risk"] || 0,
     };
-
-    // =========================
-    // Debug Logs
-    // =========================
-
-    console.log("UMBI:", payload.UMBI);
-    console.log("UIMBI:", payload.UIMBI);
-    console.log("MED:", payload.MED);
-    console.log("UMPD:", payload.UMPD);
-    console.log("UIMPD:", payload.UIMPD);
-    console.log("PIP:", payload.PIP);
-
-    console.log("RoadSide Flag:", payload.RoadSide);
-    console.log("Rental Flag:", payload.Rental);
-
-    console.log("RSALimit:", payload.RSALimit);
-    console.log("RentalValue:", payload.RentalValue);
 
     // =========================
     // Encode JSON
@@ -163,12 +168,14 @@ test("Create Rater File and Calculate Premium", async () => {
     // Run PowerShell Rater
     // =========================
 
+    console.log("Executing Rater Script...");
+
     execSync(
       `powershell.exe -ExecutionPolicy Bypass -File "./rater.ps1" "${newRaterFile}" "${encoded}"`,
       { stdio: "inherit" },
     );
 
-    console.log("Created Rater File:", newRaterFile);
+    console.log("Rater execution completed.");
 
     // =========================
     // Capture Premium

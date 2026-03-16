@@ -33,11 +33,21 @@ $learnersPermitValue = if ($data.LearnersPermit -eq 1) { "Y" } else { "N" }
 $rolloverDiscountValue = if ($data.'Rollover Discount' -eq 1) { "Y" } else { "N" }
 
 
+# ================= DRIVER INFORMATION =================
+
+Write-Host "Writing driver information..."
+
+$rate.Range("Q38").Value2 = "$($data.'Effective Date')"
+$rate.Range("Q40").Value2 = "$($data.'Driver DOB')"
+$rate.Range("Q42").Value2 = "$($data.'Driver Gender')"
+$rate.Range("Q44").Value2 = "$($data.'License State')"
+$rate.Range("Q45").Value2 = "$($data.'License Status')"
+
+
 # ================= BASIC POLICY INPUT =================
 
 Write-Host "Writing policy data..."
 
-$rate.Range("Q46").Value2 = "$($data.ASM)"
 $rate.Range("Q48").Value2 = [int]$data.Zip
 $rate.Range("Q51").Value2 = "$($data.LicenseType)"
 
@@ -94,7 +104,6 @@ $rate.Range("H45").Value2 = [int]$data.UMPD
 $rate.Range("I45").Value2 = [int]$data.UIMPD
 $rate.Range("J45").Value2 = [int]$data.PIP
 
-# IMPORTANT VALUES
 $rate.Range("K45").Value2 = [int]$data.CompFlag
 $rate.Range("L45").Value2 = [int]$data.CollFlag
 
@@ -150,7 +159,6 @@ $rate.Range("Q88").Value2 = $rolloverDiscountValue
 Write-Host "Recalculating rater..."
 
 $excel.CalculateFullRebuild()
-
 Start-Sleep 2
 
 

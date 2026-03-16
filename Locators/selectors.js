@@ -1,8 +1,8 @@
 export const locators = {
-
   // ==================== Login Portal ======================
 
-  agentPortal: `//button[normalize-space()='Agent Portal']`,
+  agentPortal: `[data-test="agent-portal-btn"]`,
+  underwriterPortal: `[data-test="underwriter-portal-btn"]`,
   userNameLoc: `//input[@id='username']`,
   passwordLoc: `//input[@id='password']`,
   submitButton: `//button[@type='submit']`,
@@ -18,7 +18,7 @@ export const locators = {
   selectProgram: `#pol_lob`,
   effectiveDate: `#startTime`,
   selectTerm: `#pol_term`,
-  
+
   // ================= Named Owner Questions =================
 
   namedOwnerYes: '[data-test="f_pol_vehicle_owner_type_true"]',
@@ -78,7 +78,6 @@ export const locators = {
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
 
   // ============================== Violation Details =============================
-  
 
   // =========================================  Coverage Details  ===============================
   coveragePage: `//h5[normalize-space()='Coverages']`,
@@ -164,7 +163,7 @@ export const locators = {
   policyPageBtn: `//button[@data-test='go-to-policy-page-btn']`,
 
   // =================================== Policy Summary Page ============================
-  coverageSummaryBtn: `//button[@data-test='tab_coverage_summary']`,
+  coverageSummaryBtn: `[data-test='tab_coverage_summary']`,
   vehiclesBtn: `//span[text()='Vehicles']`,
   addedfirstVehicle: `div[role='cell'] button span`,
 
@@ -188,10 +187,17 @@ export const locators = {
   frFee: `[data-test="tax-fee-Financial Responsibility Fee"]`,
   fraudFee: `[data-test='tax-fee-Fraud Fee']`,
   policyFee: `[data-test='tax-fee-Policy Fee']`,
-  // searchTextBox: `//input[@placeholder='Search']`,
-  // searchPolicy: (policyNumber) => `//span[text()='Policy - ${policyNumber}']`,
   submissionNo: `//p[text()='Submission No.']`,
   closeVehicleDetails: `[data-test="vehicle-drawer-close"]`,
   submissionBtn: `[data-test="sidebar-Submissions-btn"]`,
   loader: `//div[text()='Searching for vehicle information']`,
+
+  // ================================== Underwriter Details ========================
+
+  searchTextBox: `//input[@placeholder='Search']`,
+  searchPolicy: (policyNumber) => `//span[text()='Policy - ${policyNumber}']`,
+  policyList: `[data-test="policyList"]`,
+  underWritingBtn:`[data-test="sidebar-Underwriting Review-btn"]`,
+  viewPriceTraceBtn: `//button/span[text()='View Price Trace']`,
+  pricetraceCloseBtn: `//button[normalize-space()='Close']`
 };

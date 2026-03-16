@@ -13,6 +13,23 @@ function getValue(data, ...keys) {
 }
 
 /**
+ * Convert date to MM-DD-YYYY
+ */
+function dateFormatUSA(dateValue) {
+  if (!dateValue) return "";
+
+  const d = new Date(dateValue);
+
+  if (isNaN(d)) return dateValue;
+
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${mm}-${dd}-${yyyy}`;
+}
+
+/**
  * Normalize Vehicle Use
  * Only convert Business -> BusinessUse
  */
@@ -84,7 +101,19 @@ export function buildRaterData(policyData, index, totalPremium = "") {
       getValue(policyData, "TC NO") ||
       `TC${String(index + 1).padStart(3, "0")}`,
 
-    ASM: getValue(policyData, "ASM**", "ASM"),
+    // ================= BASIC POLICY =================
+
+    "Effective Date": dateFormatUSA(getValue(policyData, "EffectiveDate")),
+
+    "Driver DOB": dateFormatUSA(
+      getValue(policyData, "DriverDob", "Driver DOB"),
+    ),
+
+    "Driver Gender": getValue(policyData, "DriverGender", "Driver Gender"),
+
+    "License State": getValue(policyData, "License State"),
+
+    "License Status": getValue(policyData, "DLicenseStatus", "License Status"),
 
     "Garage Zip": getValue(policyData, "Zip"),
 
@@ -107,15 +136,21 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     // ================= SYMBOL VALUES =================
 
     Comp: Number(compSymbol) || 0,
+
     Coll: Number(collSymbol) || 0,
 
-    // ================= COVERAGE SELECTIONS =================
+    // ================= LIABILITY COVERAGES =================
 
     UMBI: Number(getValue(policyData, "UMBI Selection")) || 0,
+
     UIMBI: Number(getValue(policyData, "UIMBI Selection")) || 0,
+
     MED: Number(getValue(policyData, "MEDPAY Selection")) || 0,
+
     UMPD: Number(getValue(policyData, "UMPD Selection")) || 0,
+
     UIMPD: Number(getValue(policyData, "UIMPD Selection")) || 0,
+
     PIP: Number(getValue(policyData, "PIPSection")) || 0,
 
     // ================= VEHICLE COVERAGE =================

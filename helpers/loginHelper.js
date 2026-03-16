@@ -12,6 +12,8 @@ export async function login(page, role = "agent") {
     password: credentials.password,
   };
 
+  console.log("Logging in as:", role, user.username);
+
   for (let attempt = 0; attempt < 3; attempt++) {
     console.log(`Login Attempt ${attempt + 1}`);
 
