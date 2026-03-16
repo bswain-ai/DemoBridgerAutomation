@@ -100,7 +100,8 @@ export function createPremiumComparison(resultFile) {
   for (let i = 0; i < raterData.length; i++) {
     const testCase = raterData[i]["TestCase No"];
 
-    const policyNo = uiData[i]["Policy Number"] || uiData[i]["PolicyNumber"];
+    const policyNo =
+      uiData[i]?.["Policy Number"] || uiData[i]?.["PolicyNumber"] || "";
 
     const uiPremiumRaw = uiData[i]["totalPremium"] || uiData[i]["TotalPremium"];
 
