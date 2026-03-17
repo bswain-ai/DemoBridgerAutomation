@@ -95,6 +95,7 @@ test("Create Rater File and Calculate Premium", async () => {
       // DRIVER INFORMATION
       "Effective Date": row["Effective Date"] || "",
       "Driver DOB": row["Driver DOB"] || "",
+      "Driver Marital Status": row["Driver Marital Status"] || "",
       "Driver Gender": row["Driver Gender"] || "",
       "License State": row["License State"] || "",
       "License Status": row["License Status"] || "",

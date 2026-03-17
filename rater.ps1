@@ -39,6 +39,7 @@ Write-Host "Writing driver information..."
 
 $rate.Range("Q38").Value2 = "$($data.'Effective Date')"
 $rate.Range("Q40").Value2 = "$($data.'Driver DOB')"
+$rate.Range("Q41").Value2 = "$($data.'Driver Marital Status')"
 $rate.Range("Q42").Value2 = "$($data.'Driver Gender')"
 $rate.Range("Q44").Value2 = "$($data.'License State')"
 $rate.Range("Q45").Value2 = "$($data.'License Status')"
@@ -86,6 +87,8 @@ $rate.Range("Q74").Value2 = "$($data.VehUse)"
 
 # ================= DRIVER / RISK =================
 
+Write-Host "Settiing Driver and Risk Details"
+
 $rate.Range("Q76").Value2 = [int]$data.IsRenew
 $rate.Range("Q77").Value2 = [int]$data.DaysInForce
 $rate.Range("Q78").Value2 = [int]$data.MajorViolation
@@ -95,7 +98,7 @@ $rate.Range("Q80").Value2 = [int]$data.ChargableViolation
 
 # ================= SELECT ROW VALUES =================
 
-Write-Host "Writing SELECT row..."
+Write-Host "Writing Different Coverages"
 
 $rate.Range("E45").Value2 = [int]$data.UMBI
 $rate.Range("F45").Value2 = [int]$data.UIMBI

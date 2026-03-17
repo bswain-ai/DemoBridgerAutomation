@@ -4,11 +4,25 @@ import xlsx from "xlsx";
  * Safely get value from multiple possible keys
  */
 function getValue(data, ...keys) {
+  const normalizedData = {};
+
+  // normalize all keys once
+  for (const key in data) {
+    normalizedData[key.toLowerCase().trim()] = data[key];
+  }
+
   for (const key of keys) {
-    if (data[key] !== undefined && data[key] !== null && data[key] !== "") {
-      return data[key];
+    const normalizedKey = key.toLowerCase().trim();
+
+    if (
+      normalizedData[normalizedKey] !== undefined &&
+      normalizedData[normalizedKey] !== null &&
+      normalizedData[normalizedKey] !== ""
+    ) {
+      return normalizedData[normalizedKey];
     }
   }
+
   return "";
 }
 
@@ -55,7 +69,7 @@ export function getRaterPremium(raterFile) {
     return 0;
   }
 
-  const cell = sheet["C97"];
+  const cell = sheet["C98"];
   const premium = Number(cell?.v || 0);
 
   console.log("Captured Premium:", premium);
@@ -107,6 +121,11 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "Driver DOB": dateFormatUSA(
       getValue(policyData, "DriverDob", "Driver DOB"),
+    ),
+    "Driver Marital Status": getValue(
+      policyData,
+      "DMaritalStatus",
+      "Driver Marital Status",
     ),
 
     "Driver Gender": getValue(policyData, "DriverGender", "Driver Gender"),
