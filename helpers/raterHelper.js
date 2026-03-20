@@ -1,4 +1,6 @@
 import xlsx from "xlsx";
+import fs from "fs";
+import path from "path";
 
 /**
  * Safely get value from multiple possible keys
@@ -248,5 +250,55 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     "Rollover Discount": rolloverDiscount,
 
     Premium: totalPremium,
+  };
+}
+
+/**
+ * =======================
+ * Extract Coverage Values 
+ * =======================
+ */
+export function getRaterCoverageData(policyNo, type) {
+  const fs = require("fs");
+  const path = require("path");
+
+  const folderPath = process.env.RATER_OUTPUT;
+  const files = fs.readdirSync(folderPath);
+
+  const fileName = files.find((f) => f.includes(policyNo));
+
+  if (!fileName) {
+    console.log(`❌ File not found for ${policyNo}`);
+    return null;
+  }
+
+  const fullPath = path.join(folderPath, fileName);
+  const wb = xlsx.readFile(fullPath);
+  const sheet = wb.Sheets["RateOrder"];
+
+  // ✅ ROW MAPPING
+  const rowMap = {
+    Base: { factor: 48, calc: 80 },
+    Region: { factor: 49, calc: 81 },
+    Profile: { factor: 50, calc: 82 },
+    Household: { factor: 51, calc: 83 },
+    "Policy class": { factor: 52, calc: 84 },
+    "Model year": { factor: 53, calc: 85 },
+  };
+
+  const rows = rowMap[type];
+
+  if (!rows) {
+    console.log(`⚠️ No mapping for ${type}`);
+    return null;
+  }
+
+  const get = (col, row) => Number(sheet[`${col}${row}`]?.v || 0);
+
+  return {
+    BI: { factor: get("C", rows.factor), calc: get("C", rows.calc) },
+    PD: { factor: get("D", rows.factor), calc: get("D", rows.calc) },
+    COMP: { factor: get("K", rows.factor), calc: get("K", rows.calc) },
+    COLL: { factor: get("L", rows.factor), calc: get("L", rows.calc) },
   };
 }

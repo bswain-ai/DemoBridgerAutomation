@@ -13,24 +13,32 @@ export function readSheetAsJson(filePath, sheetName) {
     throw new Error(`Sheet "${sheetName}" not found in ${filePath}`);
   }
 
-  const rawData = xlsx.utils.sheet_to_json(sheet, {
-    range: 1, // start reading from row 2
-    defval: "", // prevent undefined
+  // Read normally first
+  let data = xlsx.utils.sheet_to_json(sheet, {
+    defval: "",
     raw: false,
   });
 
-  // const rawData = xlsx.utils.sheet_to_json(sheet, {
-  //   defval: "",
-  // });
+  // Detect broken headers
+  const hasEmptyHeaders =
+    data.length &&
+    Object.keys(data[0]).some((key) => key.startsWith("__EMPTY"));
 
-  const cleanedData = rawData.map((row) => {
+  if (hasEmptyHeaders) {
+    // Re-read by skipping first row
+    data = xlsx.utils.sheet_to_json(sheet, {
+      range: 1,
+      defval: "",
+      raw: false,
+    });
+  }
+
+  // Clean keys
+  const cleanedData = data.map((row) => {
     const newRow = {};
 
     for (const key in row) {
-      const cleanKey = key
-        .replace(/\*/g, "") // remove *
-        .replace(/\s+/g, " ") // normalize spaces
-        .trim();
+      const cleanKey = key.replace(/\*/g, "").replace(/\s+/g, " ").trim();
 
       newRow[cleanKey] = row[key];
     }
@@ -40,7 +48,6 @@ export function readSheetAsJson(filePath, sheetName) {
 
   return cleanedData;
 }
-
 /**
  * =============================
  * Open workbook and sheet

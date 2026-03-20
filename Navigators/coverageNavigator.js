@@ -100,6 +100,21 @@ export class CoverageNavigator {
     }
   }
 
+  async selectMuiDropdown(dropdownLocator, value) {
+    // Open dropdown
+    await dropdownLocator.click();
+
+    // Wait for options to appear
+    const option = this.page.locator('li[role="option"]', {
+      hasText: String(value),
+    });
+
+    await option.waitFor({ state: "visible" });
+
+    // Click option
+    await option.click();
+  }
+
   // ==========================================
   // Rental + Roadside Values
   // ==========================================
@@ -109,20 +124,22 @@ export class CoverageNavigator {
       const rrLimit = policyData["RR Limit"];
       const rrDuration = policyData["RR Duration"];
 
+      // ===== RR LIMIT =====
       if (rrLimit) {
         const limitDropdown = this.page.locator(locators.rrLimit);
 
         if (await limitDropdown.count()) {
-          await limitDropdown.selectOption(String(rrLimit));
+          await this.selectMuiDropdown(limitDropdown, rrLimit);
           console.log("RR Limit selected:", rrLimit);
         }
       }
 
+      // ===== RR DURATION =====
       if (rrDuration) {
         const durationDropdown = this.page.locator(locators.rrDuration);
 
         if (await durationDropdown.count()) {
-          await durationDropdown.selectOption(String(rrDuration));
+          await this.selectMuiDropdown(durationDropdown, rrDuration);
           console.log("RR Duration selected:", rrDuration);
         }
       }

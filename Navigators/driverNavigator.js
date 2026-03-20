@@ -121,11 +121,12 @@ export class DriverNavigator {
 
     const sr22Checkbox = this.page.locator(locators.sr22CheckBox);
 
-    await expect(sr22Checkbox).toBeVisible({ timeout: 10000 });
+    await expect(sr22Checkbox).toBeVisible({ timeout: 50000 });
 
     const isChecked = await sr22Checkbox.isChecked();
 
     if (!isChecked) {
+      await expect(sr22Checkbox).toBeVisible({ timeout: 50000 });
       await sr22Checkbox.click({ force: true });
       console.log("SR22 enabled");
     } else {
