@@ -351,7 +351,7 @@ export function buildComparisonJSON(policyNo, traceData) {
       result.data[type][coverage] = {
         ui: {
           factor: Number(uiValues.factor ?? 0),
-          calc: Number(uiValues.calc ?? 0), 
+          calc: Number(uiValues.calc ?? 0),
         },
         rater: {
           factor: Number(raterValues.factor ?? 0),
@@ -444,7 +444,7 @@ export function writeFactorMismatch(wb, mismatches) {
 
   wb.Sheets[sheetName] = xlsx.utils.json_to_sheet(finalData);
 
-  console.log(`✅ ${newData.length} factor mismatches written`);
+  console.log(`${newData.length} factor mismatches written`);
 }
 
 /**
