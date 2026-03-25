@@ -1,98 +1,87 @@
 import { test } from "@playwright/test";
+import xlsx from "xlsx";
+
 import { getFailedPolicies } from "../helpers/excelReader.js";
 import { login } from "../helpers/loginHelper.js";
 import { searchPolicy } from "../helpers/policySearchHelper.js";
 import { UwTraceHelper } from "../helpers/uwTraceHelper.js";
+
 import {
-  writeFailedPoliciesToSheet,
-  writeCoverageData,
+  buildComparisonJSON,
+  getMismatches,
+  writeFactorMismatch,
+  saveWorkbook,
 } from "../helpers/excelWriter.js";
 
 test("Underwriter validation for failed policies", async ({ page }) => {
+  test.setTimeout(600000);
+
   const filePath = process.env.DATA_RESULT;
 
-  // ✅ Step 1: Read failed policies
+  console.log("FILE PATH:", filePath);
+
+  // LOAD WORKBOOK ONCE
+  const wb = xlsx.readFile(filePath);
+
+  // ================= STEP 1 =================
   const failedPolicies = getFailedPolicies(filePath);
 
   if (!failedPolicies.length) {
-    console.log("⚠️ No failed policies found.");
+    console.log("No failed policies found.");
     return;
   }
 
-  // ✅ Step 2: Login
+  // ================= STEP 2 =================
   await login(page, "underwriter");
 
   const traceHelper = new UwTraceHelper(page);
 
-  // ✅ Step 3: Write Policy Numbers FIRST
-  writeFailedPoliciesToSheet(filePath, failedPolicies);
-
-  // ✅ Step 4: Process each policy
+  // ================= STEP 3 =================
   for (const policy of failedPolicies) {
-    console.log(`\n🔍 Processing Policy: ${policy.policyNumber}`);
+    try {
+      console.log(`\n Processing Policy: ${policy.policyNumber}`);
 
-    await searchPolicy(page, policy.policyNumber);
+      await searchPolicy(page, policy.policyNumber);
+      await traceHelper.openCoverageSummary();
 
-    await traceHelper.openCoverageSummary();
+      const traceData = await traceHelper.openViewPriceTrace();
 
-    // ✅ CAPTURE TRACE DATA
-    const traceData = await traceHelper.openViewPriceTrace();
-
-    if (!traceData || Object.keys(traceData).length === 0) {
-      console.log("⚠️ No trace data found. Skipping...");
-      await traceHelper.closePriceTrace();
-      await traceHelper.goToUnderwriting();
-      continue;
-    }
-
-    console.log("📊 Full Trace Data:", traceData);
-
-    await traceHelper.closePriceTrace();
-    await traceHelper.goToUnderwriting();
-
-    // ✅ Define only required sections
-    const requiredTypes = [
-      "Base",
-      "Region",
-      "Profile",
-      "Household",
-      "Policy class",
-      "Model year",
-      "Symbol",
-      "Non-Owner / FR",
-      "Limits / Deductible",
-      "Term",
-      "License Type Surcharge",
-      "Business Use",
-      "Violations Surcharge",
-      "Unacceptable Risk Surcharge",
-      "Sum of Surcharges",
-      "Multi-Car Discount",
-      "Prior Coverage Discount",
-      "Defensive Driver Discount",
-      "Drug/Alcohol Awareness Discount",
-      "Rollover Discount",
-      "Sum of discounts"
-    ];
-
-    // ✅ SAFE LOOP (use for...of instead of forEach)
-    for (const type of requiredTypes) {
-      const data = traceData[type];
-
-      if (!data || Object.keys(data).length === 0) {
-        console.log(`⚠️ No data for ${type}`);
+      if (!traceData || Object.keys(traceData).length === 0) {
+        console.log(" No trace data found. Skipping...");
+        await traceHelper.closePriceTrace();
+        await traceHelper.goToUnderwriting();
         continue;
       }
 
-      console.log(`📝 Writing ${type} data...`);
+      console.log("Trace Data Captured");
 
-      try {
-        writeCoverageData(filePath, policy.policyNumber, type, data);
-      } catch (error) {
-        console.log(`❌ Failed writing ${type}:`, error.message);
+      await traceHelper.closePriceTrace();
+      await traceHelper.goToUnderwriting();
+
+      // ================= BUILD JSON =================
+      const comparisonJSON = buildComparisonJSON(
+        policy.policyNumber,
+        traceData,
+      );
+
+      const mismatches = getMismatches(comparisonJSON);
+
+      if (mismatches.length > 0) {
+        console.log(`${mismatches.length} mismatches found`);
+
+        // WRITE BOTH TYPES
+        writeFactorMismatch(wb, mismatches); // Factor Sheet
+      } else {
+        console.log(" No mismatches");
       }
+    } catch (error) {
+      console.error(`Error processing ${policy.policyNumber}:`, error);
     }
   }
 
-  console.log("\n✅ Underwriter validation completed successfully");
+  // ================= SAVE ONCE =================
+  saveWorkbook(wb, filePath);
+
+  console.log(" Excel saved successfully");
+  console.log("\n Underwriter Trace validation completed successfully");
 });

@@ -137,7 +137,6 @@ export function writeFailedPoliciesToSheet(resultFile, failedPolicies) {
     "Household Failed Scenarios",
     "PolicyClass Failed Scenarios",
     "ModelYear Failed Scenarios",
-    "Symbol Failed Scenarios",
     "NonOwnerFR Failed Scenarios",
     "LimitsDed Failed Scenarios",
     "Term Failed Scenarios",
@@ -179,14 +178,29 @@ export function writeFailedPoliciesToSheet(resultFile, failedPolicies) {
   });
 
   xlsx.writeFile(wb, resultFile);
-  console.log("✅ Policy numbers written");
+  console.log(" Policy numbers written");
 }
 
 /**
  * ================= Write Coverage Data =================
  */
-export function writeCoverageData(resultFile, policyNo, type, data) {
-  const wb = xlsx.readFile(resultFile);
+export function writeUICoverageData(wb, policyNo, type, data) {
+  //const wb = xlsx.readFile(resultFile);
+
+  // Skip Symbol completely
+  if (type === "Symbol") return;
+
+  const noCalcTypes = [
+    "License Type Surcharge",
+    "Business Use",
+    "Violations Surcharge",
+    "Unacceptable Risk Surcharge",
+    "Multi-Car Discount",
+    "Prior Coverage Discount",
+    "Defensive Driver Discount",
+    "Drug/Alcohol Awareness Discount",
+    "Rollover Discount",
+  ];
 
   const sheetNameMap = {
     Base: "Base Failed Scenarios",
@@ -195,7 +209,6 @@ export function writeCoverageData(resultFile, policyNo, type, data) {
     Household: "Household Failed Scenarios",
     "Policy class": "PolicyClass Failed Scenarios",
     "Model year": "ModelYear Failed Scenarios",
-    Symbol: "Symbol Failed Scenarios",
     "Non-Owner / FR": "NonOwnerFR Failed Scenarios",
     "Limits / Deductible": "LimitsDed Failed Scenarios",
     Term: "Term Failed Scenarios",
@@ -213,8 +226,12 @@ export function writeCoverageData(resultFile, policyNo, type, data) {
   };
 
   const sheetName = sheetNameMap[type];
-  const sheet = wb.Sheets[sheetName];
+  if (!sheetName) {
+    console.log(`No sheet mapping for type: ${type}`);
+    return;
+  }
 
+  const sheet = wb.Sheets[sheetName];
   if (!sheet) return;
 
   const columnMap = {
@@ -230,13 +247,28 @@ export function writeCoverageData(resultFile, policyNo, type, data) {
     RSA: ["U", "V"],
   };
 
-  // 🔍 Find row
-  let row = 2;
-  while (sheet[`A${row}`]?.v !== policyNo) {
-    row += 2;
+  let row = null;
+
+  //  STRICT SEARCH ONLY FOR POLICY
+  for (let i = 2; i <= 5000; i += 2) {
+    const val = sheet[`A${i}`]?.v;
+
+    if (val && val.toString().trim() === policyNo) {
+      row = i;
+      break;
+    }
   }
 
-  console.log(`📌 Writing ${type} → Row ${row}`);
+  //  DO NOT CREATE AGAIN (already created in writeFailedPoliciesToSheet)
+  if (!row) {
+    console.log(` Policy row not found for ${policyNo}`);
+    return;
+  }
+
+  const uiRow = row;
+  const excelRow = row + 1;
+
+  console.log(` Writing ${type} → UI Row ${uiRow}, Excel Row ${excelRow}`);
 
   // ================= UI WRITE =================
   Object.entries(data).forEach(([coverage, values]) => {
@@ -245,42 +277,174 @@ export function writeCoverageData(resultFile, policyNo, type, data) {
 
     const [factorCol, calcCol] = cols;
 
-    sheet[`${factorCol}${row}`] = { t: "n", v: Number(values.factor) };
-    sheet[`${calcCol}${row}`] = { t: "n", v: Number(values.calc) };
+    // Factor
+    sheet[`${factorCol}${uiRow}`] = {
+      t: "n",
+      v: Number(values.factor ?? 0),
+    };
+
+    // Calc (if allowed)
+    if (!noCalcTypes.includes(type)) {
+      sheet[`${calcCol}${uiRow}`] = {
+        t: "n",
+        v: Number(values.calc ?? 0),
+      };
+    } else {
+      sheet[`${calcCol}${uiRow}`] = { t: "s", v: "" };
+    }
   });
 
-  // ================= RATER BASE WRITE =================
+  // ================= RATER WRITE =================
   const raterData = getRaterCoverageData(policyNo, type);
 
   if (raterData) {
-    const excelRow = row + 1;
-
     Object.entries(raterData).forEach(([coverage, values]) => {
       const cols = columnMap[coverage];
-
       if (!cols) return;
 
       const [factorCol, calcCol] = cols;
 
+      // Factor
       sheet[`${factorCol}${excelRow}`] = {
         t: "n",
-        v: values.factor,
+        v: Number(values.factor ?? 0),
       };
 
-      sheet[`${calcCol}${excelRow}`] = {
-        t: "n",
-        v: values.calc,
-      };
+      // Calc (if allowed)
+      if (!noCalcTypes.includes(type)) {
+        sheet[`${calcCol}${excelRow}`] = {
+          t: "n",
+          v: Number(values.calc ?? 0),
+        };
+      } else {
+        sheet[`${calcCol}${excelRow}`] = { t: "s", v: "" };
+      }
 
-      console.log(
-        `📥 ${coverage} → ${factorCol}${excelRow}:${values.factor}, ${calcCol}${excelRow}:${values.calc}`,
-      );
+      console.log(` ${coverage} → ${factorCol}${excelRow}:${values.factor}`);
     });
   }
 
-  // SAVE FILE
+  // ================= SAVE =================
   wb.Sheets[sheetName] = sheet;
-  xlsx.writeFile(wb, resultFile);
+  //xlsx.writeFile(wb, resultFile);
+}
+
+// =================== COMPARISON JSON ==================
+export function buildComparisonJSON(policyNo, traceData) {
+  const result = {
+    policyNo,
+    data: {},
+  };
+
+  Object.entries(traceData).forEach(([type, uiData]) => {
+    if (type === "Symbol") return;
+
+    const raterData = getRaterCoverageData(policyNo, type);
+    if (!raterData) return;
+
+    result.data[type] = {};
+
+    Object.entries(uiData).forEach(([coverage, uiValues]) => {
+      const raterValues = raterData[coverage];
+      if (!raterValues) return;
+
+      result.data[type][coverage] = {
+        ui: {
+          factor: Number(uiValues.factor ?? 0),
+          calc: Number(uiValues.calc ?? 0), 
+        },
+        rater: {
+          factor: Number(raterValues.factor ?? 0),
+          calc: Number(raterValues.calc ?? 0),
+        },
+      };
+    });
+  });
+
+  return result;
+}
+
+// =================== GET MISMATCH COMPARISION ====================
+export function getMismatches(comparisonJSON) {
+  const mismatches = [];
+
+  const { policyNo, data } = comparisonJSON;
+
+  const TOLERANCE = 0.001;
+
+  Object.entries(data).forEach(([type, coverages]) => {
+    Object.entries(coverages).forEach(([coverage, values]) => {
+      const { ui, rater } = values;
+
+      // Factor comparison with tolerance
+      if (Math.abs(ui.factor - rater.factor) > TOLERANCE) {
+        mismatches.push({
+          policyNo,
+          type,
+          coverage,
+          field: "Factor",
+          ui: ui.factor,
+          rater: rater.factor,
+          diff: ui.factor - rater.factor,
+        });
+      }
+
+      // Calc comparison with tolerance
+      if (Math.abs(ui.calc - rater.calc) > TOLERANCE) {
+        mismatches.push({
+          policyNo,
+          type,
+          coverage,
+          field: "Calculation",
+          ui: ui.calc,
+          rater: rater.calc,
+          diff: ui.calc - rater.calc,
+        });
+      }
+    });
+  });
+
+  return mismatches;
+}
+
+export function writeFactorMismatch(wb, mismatches) {
+  const sheetName = "Coverage Factor Mismatch";
+
+  let sheet = wb.Sheets[sheetName];
+
+  // Create sheet if not exists
+  if (!sheet) {
+    console.log(" Creating 'Coverage Factor Mismatch' sheet");
+
+    sheet = xlsx.utils.aoa_to_sheet([
+      ["PolicyNo", "Type", "Coverage", "UI Value", "Rater Value"],
+    ]);
+
+    wb.Sheets[sheetName] = sheet;
+
+    if (!wb.SheetNames.includes(sheetName)) {
+      wb.SheetNames.push(sheetName);
+    }
+  }
+
+  // Filter ONLY Factor mismatches
+  const factorMismatches = mismatches.filter((m) => m.field === "Factor");
+
+  const existingData = xlsx.utils.sheet_to_json(sheet);
+
+  const newData = factorMismatches.map((m) => ({
+    PolicyNo: m.policyNo,
+    Type: m.type,
+    Coverage: m.coverage,
+    "UI Value": Number(m.ui.toFixed(3)),
+    "Rater Value": Number(m.rater.toFixed(3)),
+  }));
+
+  const finalData = [...existingData, ...newData];
+
+  wb.Sheets[sheetName] = xlsx.utils.json_to_sheet(finalData);
+
+  console.log(`✅ ${newData.length} factor mismatches written`);
 }
 
 /**
@@ -289,4 +453,3 @@ export function writeCoverageData(resultFile, policyNo, type, data) {
 export function saveWorkbook(workbook, filePath) {
   xlsx.writeFile(workbook, filePath);
 }
-

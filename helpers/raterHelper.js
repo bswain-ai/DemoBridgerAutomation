@@ -255,7 +255,7 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
 /**
  * =======================
- * Extract Coverage Values 
+ * Extract Coverage Values
  * =======================
  */
 export function getRaterCoverageData(policyNo, type) {
@@ -284,6 +284,24 @@ export function getRaterCoverageData(policyNo, type) {
     Household: { factor: 51, calc: 83 },
     "Policy class": { factor: 52, calc: 84 },
     "Model year": { factor: 53, calc: 85 },
+    Symbol: { factor: 54, calc: 86 },
+    "Non-Owner / FR": { factor: 55, calc: 87 },
+    "Limits / Deductible": { factor: 56, calc: 88 },
+    Term: { factor: 57, calc: 89 },
+    "Sum of Surcharges": { factor: 58, calc: 90 },
+
+    "License Type Surcharge": { factor: 59, calc: 91 },
+    "Business Use": { factor: 60, calc: 92 },
+    "Violations Surcharge": { factor: 61, calc: 93 },
+    "Unacceptable Risk Surcharge": { factor: 62, calc: 94 },
+
+    "Sum of discounts": { factor: 65, calc: 91 },
+
+    "Multi-Car Discount": { factor: 66, calc: 98 },
+    "Prior Coverage Discount": { factor: 67, calc: 99 },
+    "Defensive Driver Discount": { factor: 70, calc: 102 },
+    "Drug/Alcohol Awareness Discount": { factor: 71, calc: 103 },
+    "Rollover Discount": { factor: 72, calc: 104 },
   };
 
   const rows = rowMap[type];

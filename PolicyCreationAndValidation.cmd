@@ -7,5 +7,9 @@ echo Running Premium Validation Test...
 call npx playwright test policyValidation.spec.js --project=chromium
 
 echo.
+echo Running Premium Validation Test...
+call npx playwright test traceValidation.spec.js --project=chromium --headed
+
+echo.
 echo All tests completed!
 pause

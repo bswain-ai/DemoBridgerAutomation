@@ -56,7 +56,7 @@ export class UwTraceHelper {
 
   // ================= CAPTURE FULL PRICE TRACE =================
   async captureAllTraceValues() {
-    console.log("📊 Capturing Selected Price Trace Values...");
+    console.log("Capturing Selected Price Trace Values...");
 
     try {
       const result = {};
@@ -101,10 +101,10 @@ export class UwTraceHelper {
       ];
 
       for (const label of labels) {
-        console.log(`\n🔹 Processing: ${label}`);
+        console.log(`\n Processing: ${label}`);
         result[label] = {};
 
-        // ✅ Strong locator
+        // Strong locator
         const row = this.page
           .locator("tr", {
             has: this.page.locator(`td:has-text("${label}")`),
@@ -112,7 +112,7 @@ export class UwTraceHelper {
           .first();
 
         if (!(await row.count())) {
-          console.log(`❌ Row not found: ${label}`);
+          console.log(`Row not found: ${label}`);
           continue;
         }
 
@@ -135,7 +135,7 @@ export class UwTraceHelper {
           // ================= FACTOR EXTRACTION =================
           let factorValue = null;
 
-          // 🔹 Step 1: Try extracting from NON-RED spans (best for Anti-Theft)
+          //  Step 1: Try extracting from NON-RED spans (best for Anti-Theft)
           const spans = cell.locator("span");
           let spanText = null;
 
@@ -158,10 +158,10 @@ export class UwTraceHelper {
             }
           }
 
-          // 🔹 Step 2: Decide source (span preferred, fallback to rawText)
+          // Step 2: Decide source (span preferred, fallback to rawText)
           const finalText = spanText || rawText;
 
-          // 🔹 Step 3: Extract numeric value
+          // Step 3: Extract numeric value
           if (finalText && finalText !== "-" && finalText.trim() !== "") {
             const match = finalText.match(/[\d,.]+/);
             if (match && match[0].trim() !== "") {
@@ -211,32 +211,6 @@ export class UwTraceHelper {
     }
   }
 
-  // ================ CAPTURE DATA ======================
-  // async captureBaseData() {
-  //   const baseData = {};
-
-  //   const rows = await this.page.locator("text=Base").locator("..").all();
-
-  //   for (const row of rows) {
-  //     const text = await row.textContent();
-
-  //     const match = text.match(
-  //       /Base\s*\|\s*(\w+)\s*\|\s*Factor:\s*([\d.]+)\s*\|\s*Calc:\s*([\d.]+)/,
-  //     );
-
-  //     if (match) {
-  //       const coverage = match[1].toUpperCase();
-  //       const factor = parseFloat(match[2]);
-  //       const calc = parseFloat(match[3]);
-
-  //       baseData[coverage] = { factor, calc };
-  //     }
-  //   }
-
-  //   console.log("✅ Parsed Base Data:", baseData);
-
-  //   return baseData;
-  // }
   // ================= CLOSE TRACE =================
   async closePriceTrace() {
     try {
