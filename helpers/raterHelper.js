@@ -83,11 +83,28 @@ export function getRaterPremium(raterFile) {
  * Build Rater Data Object
  */
 export function buildRaterData(policyData, index, totalPremium = "") {
+  const compValue = Number(getValue(policyData, "Veh Comp Selection")) || 0;
+  const collValue = Number(getValue(policyData, "VehColl Selection")) || 0;
+
+  console.log("RAW Veh Comp:", getValue(policyData, "Veh Comp Selection"));
+  console.log("RAW Veh Coll:", getValue(policyData, "VehColl Selection"));
+
+  console.log("FINAL COMP:", compValue);
+  console.log("FINAL COLL:", collValue);
+
+  console.log("CompDeductible (JS):", policyData["CompDeductible"]);
+  console.log("CollDeductible (JS):", policyData["CollDeductible"]);
+
+  // ================= COMMON HELPERS =================
+  const toNumber = (val) => Number(val) || 0;
+
   const vehUseInput = getValue(policyData, "VehUse");
 
+  // ================= SYMBOL INPUT =================
   const compSymbol = getValue(policyData, "Comp(Symbol)**", "Comp(Symbol)");
   const collSymbol = getValue(policyData, "Coll(Symbol)**", "Coll(Symbol)");
 
+  // ================= RENTAL =================
   const rrLimit = getValue(policyData, "RR Limit");
   const rrDuration = getValue(policyData, "RR Duration");
 
@@ -96,21 +113,12 @@ export function buildRaterData(policyData, index, totalPremium = "") {
   const rsaVal = getValue(policyData, "RSA Val");
 
   // ================= LEARNERS PERMIT =================
-
-  const learnersPermitValue = getValue(
-    policyData,
-    "Does any driver have a learner’s permit?",
+  const learnersPermit = toNumber(
+    getValue(policyData, "Does any driver have a learner’s permit?"),
   );
 
-  const learnersPermit =
-    String(learnersPermitValue).trim().toLowerCase() === "yes" ? 1 : 0;
-
   // ================= ROLLOVER DISCOUNT =================
-
-  const rolloverDiscountValue = getValue(policyData, "Rollover Discount");
-
-  const rolloverDiscount =
-    String(rolloverDiscountValue).trim().toLowerCase() === "yes" ? 1 : 0;
+  const rolloverDiscount = toNumber(getValue(policyData, "Rollover Discount"));
 
   return {
     "TestCase No":
@@ -124,6 +132,7 @@ export function buildRaterData(policyData, index, totalPremium = "") {
     "Driver DOB": dateFormatUSA(
       getValue(policyData, "DriverDob", "Driver DOB"),
     ),
+
     "Driver Marital Status": getValue(
       policyData,
       "DMaritalStatus",
@@ -136,117 +145,88 @@ export function buildRaterData(policyData, index, totalPremium = "") {
 
     "License Status": getValue(policyData, "DLicenseStatus", "License Status"),
 
-    "Garage Zip": getValue(policyData, "Zip"),
+    Zip: toNumber(getValue(policyData, "Zip")),
 
     "License Type": getValue(policyData, "License Type**", "License Type"),
 
     DriverCount:
-      Number(getValue(policyData, "DriverCount**", "DriverCount")) || 1,
+      toNumber(getValue(policyData, "DriverCount**", "DriverCount")) || 1,
 
     VehicleCount:
-      Number(getValue(policyData, "VehicleCount**", "VehicleCount")) || 1,
+      toNumber(getValue(policyData, "VehicleCount**", "VehicleCount")) || 1,
 
     VIN: getValue(policyData, "VIN*", "VIN"),
 
-    Year: getValue(policyData, "VehYear"),
+    Year: toNumber(getValue(policyData, "VehYear")),
 
     Make: getValue(policyData, "Make*", "Make"),
 
     Model: getValue(policyData, "Model*", "Model"),
 
-    // ================= SYMBOL VALUES =================
+    // ================= ISO SYMBOLS =================
+    CompSymbol: toNumber(compSymbol),
+    CollSymbol: toNumber(collSymbol),
 
-    Comp: Number(compSymbol) || 0,
-
-    Coll: Number(collSymbol) || 0,
-
-    // ================= LIABILITY COVERAGES =================
-
-    UMBI: Number(getValue(policyData, "UMBI Selection")) || 0,
-
-    UIMBI: Number(getValue(policyData, "UIMBI Selection")) || 0,
-
-    MED: Number(getValue(policyData, "MEDPAY Selection")) || 0,
-
-    UMPD: Number(getValue(policyData, "UMPD Selection")) || 0,
-
-    UIMPD: Number(getValue(policyData, "UIMPD Selection")) || 0,
-
-    PIP: Number(getValue(policyData, "PIPSection")) || 0,
+    // ================= LIABILITY =================
+    UMBI: toNumber(getValue(policyData, "UMBI Selection")),
+    UIMBI: toNumber(getValue(policyData, "UIMBI Selection")),
+    MED: toNumber(getValue(policyData, "MEDPAY Selection")),
+    UMPD: toNumber(getValue(policyData, "UMPD Selection")),
+    UIMPD: toNumber(getValue(policyData, "UIMPD Selection")),
+    PIP: toNumber(getValue(policyData, "PIPSection")),
 
     // ================= VEHICLE COVERAGE =================
+    COMP: Number(getValue(policyData, "Veh Comp Selection") ?? 0),
 
-    COMP:
-      Number(
-        getValue(policyData, "COMP", "Veh Comp Selection", "VehComp Selection"),
-      ) || 0,
+    COLL: Number(getValue(policyData, "VehColl Selection") ?? 0),
 
-    COLL:
-      Number(
-        getValue(policyData, "COLL", "VehColl Selection", "Veh Coll Selection"),
-      ) || 0,
+    CompDed: toNumber(getValue(policyData, "CompDeductible")) || 250,
 
-    CompDed:
-      Number(getValue(policyData, "CompDeductible")) > 0
-        ? Number(getValue(policyData, "CompDeductible"))
-        : 250,
-
-    CollDed:
-      Number(getValue(policyData, "CollDeductible")) > 0
-        ? Number(getValue(policyData, "CollDeductible"))
-        : 250,
+    CollDed: toNumber(getValue(policyData, "CollDeductible")) || 250,
 
     // ================= ADDONS =================
+    "ROAD-SIDE": toNumber(getValue(policyData, "RSA Selection")),
 
-    "ROAD-SIDE": Number(getValue(policyData, "RSA Selection")) || 0,
+    RENTAL: toNumber(getValue(policyData, "RR Selection")),
 
-    RENTAL: Number(getValue(policyData, "RR Selection")) || 0,
-
-    RSALimit: rsaVal,
+    RSALimit: toNumber(rsaVal),
 
     RentalValue: rentalValue,
 
     // ================= FLAGS =================
+    NonOwner: toNumber(getValue(policyData, "NonOwner **", "NonOwner")),
 
-    NonOwner: getValue(policyData, "NonOwner **", "NonOwner") === "Yes" ? 1 : 0,
+    SR22: toNumber(getValue(policyData, "SR22")),
 
-    SR22: Number(getValue(policyData, "SR22")) || 0,
+    DefensiveDriver: toNumber(getValue(policyData, "DefensiveDriver")),
 
-    DefensiveDriver: Number(policyData["DefensiveDriver"]) || 0,
+    DrugDiscount: toNumber(getValue(policyData, "DrugDiscount")),
 
-    DrugDiscount: Number(policyData["DrugDiscount"]) || 0,
+    Term: toNumber(getValue(policyData, "TermLength")) || 6,
 
-    Term: Number(getValue(policyData, "TermLength")) || 6,
-
-    "Prior Coverage": Number(getValue(policyData, "Prior Coverage")) || 0,
+    "Prior Coverage": toNumber(getValue(policyData, "Prior Coverage")),
 
     // ================= VEHICLE USE =================
-
     VehUse: normalizeVehUse(vehUseInput),
 
     // ================= DRIVER / RISK =================
+    IsRenew: toNumber(getValue(policyData, "IsRenew")),
 
-    IsRenew: Number(getValue(policyData, "IsRenew")) || 0,
+    DaysInForce: toNumber(getValue(policyData, "DaysInForce")),
 
-    DaysInForce: Number(getValue(policyData, "DaysInForce")) || 0,
+    MajorViolation: toNumber(getValue(policyData, "MajorViolation")),
 
-    MajorViolation: Number(getValue(policyData, "MajorViolation")) || 0,
+    MinorViolation: toNumber(getValue(policyData, "MinorViolation")),
 
-    MinorViolation: Number(getValue(policyData, "MinorViolation")) || 0,
-
-    ChargableViolation: Number(getValue(policyData, "ChargableViolation")) || 0,
+    ChargableViolation: toNumber(getValue(policyData, "ChargableViolation")),
 
     // ================= LEARNERS PERMIT =================
-
     LearnersPermit: learnersPermit,
 
-    // ================= UW FLAG =================
+    // ================= UW =================
+    "Unacceptable Risk": toNumber(getValue(policyData, "Unacceptable Risk")),
 
-    "Unacceptable Risk":
-      getValue(policyData, "Unacceptable Risk")?.trim() === "Yes" ? 1 : 0,
-
-    // ================= ROLLOVER DISCOUNT =================
-
+    // ================= DISCOUNT =================
     "Rollover Discount": rolloverDiscount,
 
     Premium: totalPremium,
@@ -268,7 +248,7 @@ export function getRaterCoverageData(policyNo, type) {
   const fileName = files.find((f) => f.includes(policyNo));
 
   if (!fileName) {
-    console.log(`❌ File not found for ${policyNo}`);
+    console.log(` File not found for ${policyNo}`);
     return null;
   }
 
@@ -276,7 +256,7 @@ export function getRaterCoverageData(policyNo, type) {
   const wb = xlsx.readFile(fullPath);
   const sheet = wb.Sheets["RateOrder"];
 
-  // ✅ ROW MAPPING
+  //  ROW MAPPING
   const rowMap = {
     Base: { factor: 48, calc: 80 },
     Region: { factor: 49, calc: 81 },
@@ -307,7 +287,7 @@ export function getRaterCoverageData(policyNo, type) {
   const rows = rowMap[type];
 
   if (!rows) {
-    console.log(`⚠️ No mapping for ${type}`);
+    console.log(` No mapping for ${type}`);
     return null;
   }
 

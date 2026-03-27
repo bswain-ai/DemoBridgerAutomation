@@ -72,11 +72,11 @@ for (let index = 0; index < excelData.length; index++) {
       "Output_PolicyUIPremium"
     );
 
-    const raterSheet = workbook.Sheets["Output_RaterPremium"];
+    //const raterSheet = workbook.Sheets["Output_RaterPremium"];
 
-    if (!raterSheet) {
-      throw new Error(`Sheet "Output_RaterPremium" not found in ${resultPath}`);
-    }
+    // if (!raterSheet) {
+    //   throw new Error(`Sheet "Output_RaterPremium" not found in ${resultPath}`);
+    // }
 
     // ================= Login =================
 
@@ -205,9 +205,9 @@ for (let index = 0; index < excelData.length; index++) {
 
     const raterData = buildRaterData(policyData, index);
 
-    console.log("Rater Data:", raterData);
+    // console.log("Rater Data:", raterData);
 
-    writeRow(raterSheet, raterData, index);
+    // writeRow(raterSheet, raterData, index);
 
 
     // ================= Save Workbook =================

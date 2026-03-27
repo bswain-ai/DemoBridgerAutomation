@@ -11,6 +11,9 @@ $decodedJson = [System.Text.Encoding]::UTF8.GetString(
 
 $data = $decodedJson | ConvertFrom-Json
 
+Write-Host "===== FULL DATA ====="
+$data | ConvertTo-Json -Depth 5
+
 
 # ================= OPEN EXCEL =================
 
@@ -20,6 +23,15 @@ $excel.DisplayAlerts = $false
 
 $wb = $excel.Workbooks.Open($file)
 $rate = $wb.Sheets.Item("RateOrder")
+
+# ================= SAFE VALUE GETTER =================
+
+function Get-Value($obj, $key) {
+    if ($obj.PSObject.Properties[$key]) {
+        return $obj.PSObject.Properties[$key].Value
+    }
+    return $null
+}
 
 
 # ================= CONVERT VALUES =================
@@ -50,8 +62,6 @@ $rate.Range("Q45").Value2 = "$($data.'License Status')"
 Write-Host "Writing policy data..."
 
 $rate.Range("Q48").Value2 = [int]$data.Zip
-$rate.Range("Q51").Value2 = "$($data.LicenseType)"
-
 $rate.Range("Q58").Value2 = [int]$data.DriverCount
 $rate.Range("Q59").Value2 = [int]$data.VehicleCount
 
@@ -107,31 +117,44 @@ $rate.Range("H45").Value2 = [int]$data.UMPD
 $rate.Range("I45").Value2 = [int]$data.UIMPD
 $rate.Range("J45").Value2 = [int]$data.PIP
 
-$rate.Range("K45").Value2 = [int]$data.CompFlag
-$rate.Range("L45").Value2 = [int]$data.CollFlag
-
-$rate.Range("M45").Value2 = [int]$data.RoadSide
-$rate.Range("N45").Value2 = "$($data.Rental)"
-
+$rate.Range("K45").Value2 = [int]$data.COMP
+$rate.Range("L45").Value2 = [int]$data.COLL
 
 # ================= DEDUCTIBLES =================
 
-Write-Host "Writing deductibles..."
+Write-Host "===== FIXED DEDUCTIBLE LOGIC ====="
 
-if ($data.CompFlag -eq 1) {
-    $rate.Range("K46").Value2 = [int]$data.CompDed
+$compFlag = [int]$data.comp
+$collFlag = [int]$data.coll
+
+$compDed = $data.compded
+$collDed = $data.collded
+
+# ================= COMP =================
+if ($compFlag -eq 1) {
+    if ($compDed) {
+        $rate.Range("K46").Value2 = [int]$compDed
+    }
+    else {
+        $rate.Range("K46").Value2 = 0
+    }
 }
 else {
-    $rate.Range("K46").Value2 = 250
+    $rate.Range("K46").Value2 = 0
 }
 
-if ($data.CollFlag -eq 1) {
-    $rate.Range("L46").Value2 = [int]$data.CollDed
+# ================= COLL =================
+if ($collFlag -eq 1) {
+    if ($collDed) {
+        $rate.Range("L46").Value2 = [int]$collDed
+    }
+    else {
+        $rate.Range("L46").Value2 = 0
+    }
 }
 else {
-    $rate.Range("L46").Value2 = 250
+    $rate.Range("L46").Value2 = 0
 }
-
 
 # ================= ADDONS =================
 
@@ -164,6 +187,43 @@ Write-Host "Recalculating rater..."
 $excel.CalculateFullRebuild()
 Start-Sleep 2
 
+# ============= RSA / RR ========================
+Write-Host "===== FIXING RR / RSA ====="
+
+$roadSide = Get-Value $data "road-side"
+$rental = Get-Value $data "rental"
+
+Write-Host "RoadSide:" $roadSide
+Write-Host "Rental:" $rental
+
+# STEP 1 → SET SELECTION
+$rate.Range("M45").Value2 = [int]$roadSide   # RSA → RoadSide
+$rate.Range("N45").Value2 = "$rental"        # RR → Rental
+
+# STEP 2 → CALCULATE
+$excel.Calculate()
+Start-Sleep 1
+
+# STEP 3 → SET LIMITS AFTER CALC
+if ($roadSide -eq 1 -and $data.RSALimit) {
+    $rate.Range("M46").Value2 = [int]$data.RSALimit
+}
+
+if ($rental -eq "1" -and $data.RentalValue) {
+    $rate.Range("N46").Value2 = "$($data.RentalValue)"
+}
+
+# STEP 4 → FINAL CALC
+$excel.Calculate()
+Start-Sleep 1
+
+
+# ================= FINAL CALC =================
+
+Write-Host "Final recalculation..."
+
+$excel.CalculateFullRebuild()
+Start-Sleep 2
 
 # ================= SAVE =================
 

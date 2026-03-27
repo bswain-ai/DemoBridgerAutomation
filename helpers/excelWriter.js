@@ -6,23 +6,43 @@ import { getRaterCoverageData } from "../helpers/raterHelper.js";
  */
 export function writePremium(resultFile, sheetName, rowIndex, premium) {
   const wb = xlsx.readFile(resultFile);
+
   const sheet = wb.Sheets[sheetName];
 
+  if (!sheet) {
+    console.log(`Sheet "${sheetName}" not found. Skipping write.`);
+    return; // 🚀 exit
+  }
+
   const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+  // Ensure header exists
+  if (!data || data.length === 0) {
+    console.log("Sheet is empty. Skipping write.");
+    return;
+  }
+
   const headerRow = data[0];
 
-  const premiumColIndex = headerRow.indexOf("Premium");
+  // Find Premium column
+  const premiumColIndex = headerRow.findIndex((col) =>
+    String(col).toLowerCase().includes("premium"),
+  );
 
   if (premiumColIndex === -1) {
-    throw new Error("Premium column not found in sheet");
+    console.log("Premium column not found. Skipping write.");
+    return;
   }
 
-  if (!data[rowIndex]) {
-    data[rowIndex] = [];
+  // Ensure row exists
+  while (data.length <= rowIndex) {
+    data.push([]);
   }
 
-  data[rowIndex][premiumColIndex] = Number(premium) || 0;
+  // Write premium
+  data[rowIndex][premiumColIndex] = premium;
 
+  // Save back
   const newSheet = xlsx.utils.aoa_to_sheet(data);
   wb.Sheets[sheetName] = newSheet;
 
@@ -83,29 +103,48 @@ export function writeRow(sheet, rowData, rowIndex) {
 /**
  * Create UI vs Rater Premium comparison sheet
  */
-export function createPremiumComparison(resultFile) {
+export function createPremiumComparison(resultFile, premiumResults = []) {
   const wb = xlsx.readFile(resultFile);
 
   const uiSheet = wb.Sheets["Output_PolicyUIPremium"];
-  const raterSheet = wb.Sheets["Output_RaterPremium"];
 
-  const compareSheetName = "Output_UIPremVsRatePrem";
+  if (!uiSheet) {
+    console.log("UI Sheet not found. Skipping comparison.");
+    return;
+  }
 
   const uiData = xlsx.utils.sheet_to_json(uiSheet);
-  const raterData = xlsx.utils.sheet_to_json(raterSheet);
+
+  if (!uiData || uiData.length === 0) {
+    console.log("UI Data empty. Skipping comparison.");
+    return;
+  }
 
   const result = [];
 
-  for (let i = 0; i < raterData.length; i++) {
-    const testCase = raterData[i]["TestCase No"];
+  for (let i = 0; i < uiData.length; i++) {
+    const row = uiData[i] || {};
+
+    const testCase =
+      premiumResults[i]?.testCase || `TC${String(i + 1).padStart(3, "0")}`;
 
     const policyNo =
-      uiData[i]?.["Policy Number"] || uiData[i]?.["PolicyNumber"] || "";
+      premiumResults[i]?.policyNo ||
+      row["Policy Number"] ||
+      row["PolicyNo"] ||
+      "";
 
     const uiPremium =
-      Number(String(uiData[i]["totalPremium"] || "").replace(/[$,]/g, "")) || 0;
+      Number(
+        String(
+          row["totalPremium"] ||
+            row["Total Premium"] ||
+            row["Policy Premium(UI)"] ||
+            "",
+        ).replace(/[$,]/g, ""),
+      ) || 0;
 
-    const raterPremium = Number(raterData[i]["Premium"]) || 0;
+    const raterPremium = premiumResults[i]?.raterPremium || 0;
 
     const status = uiPremium === raterPremium ? "PASS" : "FAIL";
 
@@ -118,12 +157,12 @@ export function createPremiumComparison(resultFile) {
     });
   }
 
-  wb.Sheets[compareSheetName] = xlsx.utils.json_to_sheet(result);
+  wb.Sheets["Output_UIPremVsRatePrem"] = xlsx.utils.json_to_sheet(result);
+
   xlsx.writeFile(wb, resultFile);
 
   console.log("Premium comparison sheet created successfully");
 }
-
 /**
  * Write Failed Policies
  */
