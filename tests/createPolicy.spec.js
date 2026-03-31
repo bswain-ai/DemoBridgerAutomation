@@ -17,31 +17,26 @@ import { UnderwriterNavigator } from "../Navigators/underwriterNavigator.js";
 import { PaymentNavigator } from "../Navigators/paymentNavigator.js";
 import { ConfirmationNavigator } from "../Navigators/confirmationNavigator.js";
 
-import { buildRaterData } from "../helpers/raterHelper.js";
-
+// ================= FILE PATH =================
 const filePath = credentials.dataFile;
 const resultPath = credentials.resultFile;
 
-
-// ================= Read Input Excel =================
-
+// ================= READ EXCEL =================
 const excelData = readSheetAsJson(
   filePath,
   "InputData_Policy&RateAccelator"
 );
 
-console.log("Total Rows From Excel:", excelData.length);
-console.log("Excel Columns:", Object.keys(excelData[0] || {}));
+console.log("Total Rows:", excelData.length);
 
-
-// ================= Test Loop =================
-
+// ================= TEST LOOP =================
 for (let index = 0; index < excelData.length; index++) {
 
   const policyData = excelData[index];
 
-  test(`Create Policy ${index + 1}`, async ({ page }) => {
+  test(`Create Policy TC${index + 1}`, async ({ browser }) => {
 
+    // ================= VALIDATION =================
     const vin =
       policyData["VIN*"] ||
       policyData["VIN"] ||
@@ -49,173 +44,169 @@ for (let index = 0; index < excelData.length; index++) {
       "";
 
     if (!vin) {
-      console.log("Skipping row due to missing VIN:", policyData);
+      console.log("Skipping row due to missing VIN");
       test.skip();
     }
 
-    // ================= Navigators =================
+    // ================= RETRY CONFIG =================
+    const MAX_RETRIES = 2;
+    let attempt = 0;
+    let success = false;
 
-    const nameInsured = new NameInsuredNavigator(page);
-    const addressNavigator = new AddressNavigator(page);
-    const vehicleNavigator = new VehicleNavigator(page);
-    const driverNavigator = new DriverNavigator(page);
-    const violationsNavigator = new ViolationsNavigator(page);
-    const coverageNavigator = new CoverageNavigator(page);
-    const underwriterNavigator = new UnderwriterNavigator(page);
-    const paymentNavigator = new PaymentNavigator(page);
-    const confirmationNavigator = new ConfirmationNavigator(page);
+    while (attempt < MAX_RETRIES && !success) {
 
-    // ================= Open Workbook =================
+      const context = await browser.newContext();
+      const page = await context.newPage();
 
-    const { workbook, sheet: uiPremiumSheet } = openWorkbook(
-      resultPath,
-      "Output_PolicyUIPremium"
-    );
+      try {
+        console.log(`Running TC${index + 1} - Attempt ${attempt + 1}`);
 
-    //const raterSheet = workbook.Sheets["Output_RaterPremium"];
+        // ================= NAVIGATORS =================
+        const nameInsured = new NameInsuredNavigator(page);
+        const addressNavigator = new AddressNavigator(page);
+        const vehicleNavigator = new VehicleNavigator(page);
+        const driverNavigator = new DriverNavigator(page);
+        const violationsNavigator = new ViolationsNavigator(page);
+        const coverageNavigator = new CoverageNavigator(page);
+        const underwriterNavigator = new UnderwriterNavigator(page);
+        const paymentNavigator = new PaymentNavigator(page);
+        const confirmationNavigator = new ConfirmationNavigator(page);
 
-    // if (!raterSheet) {
-    //   throw new Error(`Sheet "Output_RaterPremium" not found in ${resultPath}`);
-    // }
+        // ================= EXCEL =================
+        const { workbook, sheet: uiPremiumSheet } = openWorkbook(
+          resultPath,
+          "Output_PolicyUIPremium"
+        );
 
-    // ================= Login =================
+        // ================= LOGIN =================
+        await login(page, "agent");
 
-    await login(page, "agent");
+        const insuredData = FakerData.generateNamedInsured();
 
+        // ================= POLICY FLOW =================
+        await nameInsured.completeNamedInsured(policyData, insuredData);
+        await addressNavigator.enterAddress(policyData);
+        await vehicleNavigator.addVehicle(policyData);
+        await driverNavigator.completeDriverSection(policyData);
+        await violationsNavigator.withoutViolation();
+        await coverageNavigator.applyCoverages(policyData);
 
-    // ================= Policy Flow =================
+        // ================= UW =================
+        await paymentNavigator.handleValidateEligibility();
 
-    const insuredData = FakerData.generateNamedInsured();
+        await underwriterNavigator.completeEligibilityQuestions([
+          { id: "allHouseholdMembersListed", answer: "Yes" },
+          { id: "excludedSpouse", answer: "No" },
+          { id: "selfEmployedDriver", answer: "No" },
+          { id: "impairedDriver", answer: "No" },
+          { id: "convictedDriver", answer: "No" },
+          { id: "ridesharingDriver", answer: "No" },
+          { id: "vehicleNotRegisteredToDriver", answer: "No" },
+          { id: "modifiedAuto", answer: "No" },
+          { id: "businessAuto", answer: "No" },
+        ]);
 
-    await nameInsured.completeNamedInsured(policyData, insuredData);
-    await addressNavigator.enterAddress(policyData);
-    await vehicleNavigator.addVehicle(policyData);
-    await driverNavigator.completeDriverSection(policyData);
-    await violationsNavigator.withoutViolation();
-    await coverageNavigator.applyCoverages(policyData);
+        // ================= PAYMENT =================
+        await paymentNavigator.completePaymentSigning(policyData);
+        await confirmationNavigator.completeESignAndPurchase();
 
+        // ================= WAIT BEFORE CAPTURE =================
+        await page.locator(locators.policyNumber).waitFor({ state: "visible", timeout: 15000 });
 
-    // ================= UW + Payment =================
+        // ================= CAPTURE POLICY =================
+        const policyNo =
+          (await page.locator(locators.policyNumber).textContent())?.trim() || "";
 
-    await paymentNavigator.handleValidateEligibility();
+        const policyHolder =
+          (await page.locator(locators.insuredName).textContent())?.trim() || "";
 
-    const uwQuestions = [
-      { id: "allHouseholdMembersListed", answer: "Yes" },
-      { id: "excludedSpouse", answer: "No" },
-      { id: "selfEmployedDriver", answer: "No" },
-      { id: "impairedDriver", answer: "No" },
-      { id: "convictedDriver", answer: "No" },
-      { id: "ridesharingDriver", answer: "No" },
-      { id: "vehicleNotRegisteredToDriver", answer: "No" },
-      { id: "modifiedAuto", answer: "No" },
-      { id: "businessAuto", answer: "No" },
-    ];
+        const policyTerm =
+          (await page.locator(locators.policyTerm).textContent())?.trim() || "";
 
-    await underwriterNavigator.completeEligibilityQuestions(uwQuestions);
+        const paymentPlan =
+          (await page.locator(locators.paymentPlan).textContent())?.trim() || "";
 
-    await paymentNavigator.completePaymentSigning(policyData);
+        // ================= COVERAGE =================
+        await confirmationNavigator.goToCoverageSummary();
 
-    await confirmationNavigator.completeESignAndPurchase();
+        const totalPremium =
+          (await page.locator(locators.coveragePremium).textContent())?.trim() || "";
 
+        // ================= PREMIUM =================
+        const BiPremium = await getPremium(page, locators.BiPremium);
+        const PdPremium = await getPremium(page, locators.PdPremium);
+        const PipPremium = await getPremium(page, locators.PipPremium);
+        const MedpayPremium = await getPremium(page, locators.medpayPremium);
+        const UmbiPremium = await getPremium(page, locators.umbiPremium);
+        const UmpdPremium = await getPremium(page, locators.umpdPremium);
+        const UimpdPremium = await getPremium(page, locators.uimpdPremium);
 
-    // ================= Capture Policy Data =================
+        const RentalPremium = await getPremium(page, locators.rentalPremium);
+        const RoadPremium = await getPremium(page, locators.roadPremium);
 
-    const policyNo =
-      (await page.locator(locators.policyNumber).textContent())?.trim() || "";
+        const CompPremium =
+          Number(policyData["Veh Comp Selection"]) === 1
+            ? await getPremium(page, locators.compPremium)
+            : "";
 
-    const policyHolder =
-      (await page.locator(locators.insuredName).textContent())?.trim() || "";
+        const CollPremium =
+          Number(policyData["VehColl Selection"]) === 1
+            ? await getPremium(page, locators.collPremium)
+            : "";
 
-    const policyTerm =
-      (await page.locator(locators.policyTerm).textContent())?.trim() || "";
+        const SR22Fee =
+          Number(policyData["SR22"]) === 1
+            ? await getPremium(page, locators.frFee)
+            : "";
 
-    const paymentPlan =
-      (await page.locator(locators.paymentPlan).textContent())?.trim() || "";
+        const fraudFee = await getPremium(page, locators.fraudFee);
+        const policyFee = await getPremium(page, locators.policyFee);
 
+        // ================= WRITE EXCEL =================
+        const uiPremiumData = {
+          "TestCase No": `TC${String(index + 1).padStart(3, "0")}`,
+          nameInsured: policyHolder,
+          policyTerm,
+          totalPremium,
+          paymentPlan,
+          BiPremium,
+          PdPremium,
+          PipPremium,
+          MedpayPremium,
+          UmbiPremium,
+          UmpdPremium,
+          UimpdPremium,
+          OtherThanCollision: CompPremium,
+          Collision: CollPremium,
+          "Rental Reimbursement": RentalPremium,
+          "Roadside Assistance": RoadPremium,
+          SR22Fee,
+          PolicyFee: policyFee,
+          FraudFee: fraudFee,
+          "Policy Number": policyNo,
+        };
 
-    // ================= Coverage Summary =================
+        writeRow(uiPremiumSheet, uiPremiumData, index);
+        saveWorkbook(workbook, resultPath);
 
-    await confirmationNavigator.goToCoverageSummary();
+        success = true;
 
-    const totalPremium =
-      (await page.locator(locators.coveragePremium).textContent())?.trim() || "";
+        console.log(`✅ TC${index + 1} Passed on Attempt ${attempt + 1}`);
 
+      } catch (error) {
 
-    // ================= Premium Extraction =================
+        console.log(`❌ TC${index + 1} Failed on Attempt ${attempt + 1}`);
 
-    const BiPremium = await getPremium(page, locators.BiPremium);
-    const PdPremium = await getPremium(page, locators.PdPremium);
-    const PipPremium = await getPremium(page, locators.PipPremium);
-    const MedpayPremium = await getPremium(page, locators.medpayPremium);
-    const UmbiPremium = await getPremium(page, locators.umbiPremium);
-    const UmpdPremium = await getPremium(page, locators.umpdPremium);
-    const UimpdPremium = await getPremium(page, locators.uimpdPremium);
+        if (attempt === MAX_RETRIES - 1) {
+          throw error;
+        }
 
-    const RentalPremium = await getPremium(page, locators.rentalPremium);
-    const RoadPremium = await getPremium(page, locators.roadPremium);
+      } finally {
+        await page.close();
+        await context.close();
+      }
 
-    const CompPremium =
-      Number(policyData["Veh Comp Selection"]) === 1
-        ? await getPremium(page, locators.compPremium)
-        : "";
-
-    const CollPremium =
-      Number(policyData["VehColl Selection"]) === 1
-        ? await getPremium(page, locators.collPremium)
-        : "";
-
-    const SR22Fee =
-      Number(policyData["SR22"]) === 1
-        ? await getPremium(page, locators.frFee)
-        : "";
-
-    const fraudFee = await getPremium(page, locators.fraudFee);
-    const policyFee = await getPremium(page, locators.policyFee);
-
-
-    // ================= Write UI Premium =================
-
-    const uiPremiumData = {
-      "TestCase No": `TC${String(index + 1).padStart(3, "0")}`,
-      nameInsured: policyHolder,
-      policyTerm,
-      totalPremium,
-      paymentPlan,
-      BiPremium,
-      PdPremium,
-      PipPremium,
-      MedpayPremium,
-      UmbiPremium,
-      UmpdPremium,
-      UimpdPremium,
-      OtherThanCollision: CompPremium,
-      Collision: CollPremium,
-      "Rental Reimbursement": RentalPremium,
-      "Roadside Assistance": RoadPremium,
-      SR22Fee,
-      PolicyFee: policyFee,
-      FraudFee: fraudFee,
-      "Policy Number": policyNo,
-    };
-
-    writeRow(uiPremiumSheet, uiPremiumData, index);
-
-
-    // ================= Write Rater Output =================
-
-    const raterData = buildRaterData(policyData, index);
-
-    // console.log("Rater Data:", raterData);
-
-    // writeRow(raterSheet, raterData, index);
-
-
-    // ================= Save Workbook =================
-
-    saveWorkbook(workbook, resultPath);
-
-    console.log(`Policy ${index + 1} created successfully`);
-
+      attempt++;
+    }
   });
-
 }
