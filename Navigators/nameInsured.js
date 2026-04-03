@@ -115,8 +115,7 @@ export class NameInsuredNavigator {
       await expect(dateField).toBeVisible({ timeout: 50000 });
 
       await dateField.fill("");
-      await dateField.type(effectiveDate);
-
+      await dateField.type(effectiveDate, { delay: 100 });
       await this.page.keyboard.press("Tab");
 
       console.log("Effective Date entered:", effectiveDate);

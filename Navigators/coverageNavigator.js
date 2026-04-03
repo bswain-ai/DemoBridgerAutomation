@@ -109,7 +109,7 @@ export class CoverageNavigator {
       hasText: String(value),
     });
 
-    await option.waitFor({ state: "visible" });
+    await option.waitFor({ state: "visible", timeout: 10000 });
 
     // Click option
     await option.click();

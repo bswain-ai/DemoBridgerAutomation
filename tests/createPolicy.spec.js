@@ -191,11 +191,11 @@ for (let index = 0; index < excelData.length; index++) {
 
         success = true;
 
-        console.log(`✅ TC${index + 1} Passed on Attempt ${attempt + 1}`);
+        console.log(` TC${index + 1} Passed on Attempt ${attempt + 1}`);
 
       } catch (error) {
 
-        console.log(`❌ TC${index + 1} Failed on Attempt ${attempt + 1}`);
+        console.log(` TC${index + 1} Failed on Attempt ${attempt + 1}`);
 
         if (attempt === MAX_RETRIES - 1) {
           throw error;
