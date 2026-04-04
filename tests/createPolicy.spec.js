@@ -2,7 +2,7 @@ import { test } from "@playwright/test";
 import { credentials } from "../config/credentials.js";
 import { login } from "../helpers/loginHelper.js";
 import { FakerData } from "../testData/fakerData.js";
-import { readSheetAsJson, openWorkbook } from "../helpers/excelReader.js";
+import { readSheetAsJson, openWorkbook, validateInputSchema } from "../helpers/excelReader.js";
 import { writeRow, saveWorkbook } from "../helpers/excelWriter.js";
 import { getPremium } from "../helpers/uiHelper.js";
 import { locators } from "../Locators/selectors.js";
@@ -26,6 +26,16 @@ const excelData = readSheetAsJson(
   filePath,
   "InputData_Policy&RateAccelator"
 );
+
+// TASK 3 — Phase 1 Schema Validation
+// Validates that all 23 required columns are present in the input Excel
+// before any test case or browser session starts. If any required column
+// is missing, a named error is thrown here listing every missing column —
+// the run stops immediately rather than failing mid-test with a cryptic
+// "Cannot read properties of undefined" error 10 tests in.
+// This call runs at module load time (outside any test block) so
+// Playwright has not yet opened a browser when this check fires.
+validateInputSchema(excelData);
 
 console.log("Total Rows:", excelData.length);
 
@@ -94,16 +104,19 @@ for (let index = 0; index < excelData.length; index++) {
         // ================= UW =================
         await paymentNavigator.handleValidateEligibility();
 
+        const uw = (col, def) =>
+          policyData[col]?.toString().trim() || def;
+
         await underwriterNavigator.completeEligibilityQuestions([
-          { id: "allHouseholdMembersListed", answer: "Yes" },
-          { id: "excludedSpouse", answer: "No" },
-          { id: "selfEmployedDriver", answer: "No" },
-          { id: "impairedDriver", answer: "No" },
-          { id: "convictedDriver", answer: "No" },
-          { id: "ridesharingDriver", answer: "No" },
-          { id: "vehicleNotRegisteredToDriver", answer: "No" },
-          { id: "modifiedAuto", answer: "No" },
-          { id: "businessAuto", answer: "No" },
+          { id: "allHouseholdMembersListed",    answer: uw("UW_AllHouseholdMembersListed",    "Yes") },
+          { id: "excludedSpouse",               answer: uw("UW_ExcludedSpouse",               "No")  },
+          { id: "selfEmployedDriver",           answer: uw("UW_SelfEmployedDriver",           "No")  },
+          { id: "impairedDriver",               answer: uw("UW_ImpairedDriver",               "No")  },
+          { id: "convictedDriver",              answer: uw("UW_ConvictedDriver",              "No")  },
+          { id: "ridesharingDriver",            answer: uw("UW_RidesharingDriver",            "No")  },
+          { id: "vehicleNotRegisteredToDriver", answer: uw("UW_VehicleNotRegisteredToDriver", "No")  },
+          { id: "modifiedAuto",                 answer: uw("UW_ModifiedAuto",                 "No")  },
+          { id: "businessAuto",                 answer: uw("UW_BusinessAuto",                 "No")  },
         ]);
 
         // ================= PAYMENT =================
@@ -163,8 +176,31 @@ for (let index = 0; index < excelData.length; index++) {
         const policyFee = await getPremium(page, locators.policyFee);
 
         // ================= WRITE EXCEL =================
+
+        // TC_NO ANCHOR FIX — Phase 1 Task 1
+        // Previously the output row position was driven by the loop counter
+        // (index), which caused "row drift": if TC002 was skipped due to a
+        // missing VIN, TC003 would be written to row 2 in the output sheet
+        // instead of row 3, and every test case below it would be off by one.
+        // This made the premium comparison in policyValidation completely
+        // unreliable for any run that had at least one skipped test case.
+        //
+        // The fix: read the TC number from the "TC NO" column in the input
+        // Excel row. The output writer then finds (or creates) the correct
+        // row by matching that TC number — position in the loop no longer
+        // determines where the result is written.
+        //
+        // Falls back to a generated TC number only if the "TC NO" column
+        // is blank, so existing test cases without that column still work.
+        const tcNo =
+          policyData["TC NO"]?.toString().trim() ||
+          `TC${String(index + 1).padStart(3, "0")}`;
+
         const uiPremiumData = {
-          "TestCase No": `TC${String(index + 1).padStart(3, "0")}`,
+          // Use tcNo (sourced from the input Excel) instead of the loop
+          // counter. This label is also the key the comparison sheet uses
+          // to join UI premium against rater premium — it must be stable.
+          "TestCase No": tcNo,
           nameInsured: policyHolder,
           policyTerm,
           totalPremium,
@@ -186,7 +222,9 @@ for (let index = 0; index < excelData.length; index++) {
           "Policy Number": policyNo,
         };
 
-        writeRow(uiPremiumSheet, uiPremiumData, index);
+        // Pass tcNo to writeRow so it locates the correct output row by
+        // matching the TestCase No column — not by counting array positions.
+        writeRow(uiPremiumSheet, uiPremiumData, tcNo);
         saveWorkbook(workbook, resultPath);
 
         success = true;

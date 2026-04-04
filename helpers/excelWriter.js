@@ -1,58 +1,33 @@
 import xlsx from "xlsx";
 import { getRaterCoverageData } from "../helpers/raterHelper.js";
+import { comparePolicy } from "../helpers/comparisonEngine.js";
+
 
 /**
- * Write premium value dynamically based on header
+ * Writes a result row to the output sheet, anchored by TC number.
+ *
+ * TC_NO ANCHOR FIX — Phase 1 Task 1
+ * The old version used a numeric rowIndex (the loop counter from the test
+ * file) to decide which Excel row to write to. This caused row drift: any
+ * skipped or failed test case left a gap, shifting every row below it one
+ * position out of place. The premium comparison then silently joined the
+ * wrong UI premium to the wrong rater premium for every subsequent row.
+ *
+ * This version receives tcNo (e.g. "TC003") instead of a row number and:
+ *   1. Scans the existing output rows to find a row already written for
+ *      this TC number — if found, that row is overwritten (safe for retries).
+ *   2. If no existing row is found, appends after the last written row.
+ *
+ * Result: the output row position is determined by TC identity, not by
+ * where the test case happened to fall in the loop. Skipped test cases
+ * no longer affect the row placement of any test case below them.
+ *
+ * @param {object} sheet   - The xlsx sheet object to write into.
+ * @param {object} rowData - Key/value pairs aligned with the sheet headers.
+ * @param {string} tcNo    - The test case number (e.g. "TC003") used to
+ *                           locate or create the correct output row.
  */
-export function writePremium(resultFile, sheetName, rowIndex, premium) {
-  const wb = xlsx.readFile(resultFile);
-
-  const sheet = wb.Sheets[sheetName];
-
-  if (!sheet) {
-    console.log(`Sheet "${sheetName}" not found. Skipping write.`);
-    return; // 🚀 exit
-  }
-
-  const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-
-  // Ensure header exists
-  if (!data || data.length === 0) {
-    console.log("Sheet is empty. Skipping write.");
-    return;
-  }
-
-  const headerRow = data[0];
-
-  // Find Premium column
-  const premiumColIndex = headerRow.findIndex((col) =>
-    String(col).toLowerCase().includes("premium"),
-  );
-
-  if (premiumColIndex === -1) {
-    console.log("Premium column not found. Skipping write.");
-    return;
-  }
-
-  // Ensure row exists
-  while (data.length <= rowIndex) {
-    data.push([]);
-  }
-
-  // Write premium
-  data[rowIndex][premiumColIndex] = premium;
-
-  // Save back
-  const newSheet = xlsx.utils.aoa_to_sheet(data);
-  wb.Sheets[sheetName] = newSheet;
-
-  xlsx.writeFile(wb, resultFile);
-}
-
-/**
- * Writes row aligned with headers
- */
-export function writeRow(sheet, rowData, rowIndex) {
+export function writeRow(sheet, rowData, tcNo) {
   if (!sheet["!ref"]) {
     throw new Error("Sheet has no headers defined.");
   }
@@ -71,11 +46,39 @@ export function writeRow(sheet, rowData, rowIndex) {
 
   const rowValues = headers.map((header) => rowData[header] ?? "");
 
-  const excelRow = rowIndex + 1;
+  // Find which column contains the "TestCase No" header so we can search
+  // existing rows for a match. Normalise to lowercase with no spaces to
+  // handle minor header formatting differences (e.g. "TestCase No" vs
+  // "testcaseno") without breaking.
+  const tcColIndex = headers.findIndex(
+    (h) => h.toString().toLowerCase().replace(/\s/g, "") === "testcaseno"
+  );
+
+  // Scan every existing data row (row 1 onwards; row 0 is the header) to
+  // find one already written for this TC number. Finding a match means this
+  // is a retry run — overwrite that row rather than appending a duplicate.
+  let targetRow = null;
+
+  if (tcColIndex !== -1) {
+    for (let r = 1; r <= range.e.r; r++) {
+      const cell = sheet[xlsx.utils.encode_cell({ r, c: tcColIndex })];
+      if (cell && cell.v?.toString().trim() === tcNo.toString().trim()) {
+        targetRow = r;
+        break;
+      }
+    }
+  }
+
+  // No existing row found for this TC — append after the last written row.
+  // On the very first run, range.e.r is 0 (header only), so the first
+  // data row is written to row 1, which is correct.
+  if (targetRow === null) {
+    targetRow = range.e.r + 1;
+  }
 
   rowValues.forEach((value, colIndex) => {
     const cellAddress = xlsx.utils.encode_cell({
-      r: excelRow,
+      r: targetRow,
       c: colIndex,
     });
 
@@ -93,8 +96,8 @@ export function writeRow(sheet, rowData, rowIndex) {
 
   const newRange = xlsx.utils.decode_range(sheet["!ref"]);
 
-  if (excelRow > newRange.e.r) {
-    newRange.e.r = excelRow;
+  if (targetRow > newRange.e.r) {
+    newRange.e.r = targetRow;
   }
 
   sheet["!ref"] = xlsx.utils.encode_range(newRange);
@@ -122,14 +125,30 @@ export function createPremiumComparison(resultFile, premiumResults = []) {
 
   const result = [];
 
-  for (let i = 0; i < uiData.length; i++) {
-    const row = uiData[i] || {};
+  // TC_NO ANCHOR FIX — Phase 1 Task 1
+  // The old version joined each UI output row with its rater result using
+  // array position (uiData[i] paired with premiumResults[i]). This was
+  // fragile: if any test case was skipped and left a blank row in the output
+  // sheet, every row below it would be compared against the wrong rater
+  // premium — producing silent wrong PASS or FAIL results with no error.
+  //
+  // Fix: build a lookup map from TC number → rater result, then match each
+  // UI row to its rater result by TC number. Array position is no longer
+  // involved — a gap caused by a skipped test case has no effect on any
+  // other row's comparison.
+  const raterByTcNo = new Map(
+    premiumResults.map((r) => [r.testCase, r])
+  );
 
-    const testCase =
-      premiumResults[i]?.testCase || `TC${String(i + 1).padStart(3, "0")}`;
+  for (const row of uiData) {
+    // The "TestCase No" value was written by createPolicy.spec.js and is
+    // now anchored to the source TC number from the input Excel — safe to
+    // use as the join key between the UI output and the rater result.
+    const tcNo = row["TestCase No"]?.toString().trim() || "";
+    const raterResult = raterByTcNo.get(tcNo);
 
     const policyNo =
-      premiumResults[i]?.policyNo ||
+      raterResult?.policyNo ||
       row["Policy Number"] ||
       row["PolicyNo"] ||
       "";
@@ -144,17 +163,16 @@ export function createPremiumComparison(resultFile, premiumResults = []) {
         ).replace(/[$,]/g, ""),
       ) || 0;
 
-    const raterPremium = premiumResults[i]?.raterPremium || 0;
+    // Matched by TC number — if no rater result exists for this TC (e.g.
+    // policyValidation was not yet run), raterPremium defaults to 0 and
+    // the row will show FAIL, which is the correct safe default.
+    const raterPremium = raterResult?.raterPremium || 0;
 
-    const status = uiPremium === raterPremium ? "PASS" : "FAIL";
-
-    result.push({
-      "TestCase No": testCase,
-      PolicyNo: policyNo,
-      "Policy Premium(UI)": uiPremium,
-      "Rater Premium": raterPremium,
-      Status: status,
-    });
+    // Delegate PASS/FAIL decision and result object construction to the
+    // comparison engine — excelWriter owns I/O only; comparison logic
+    // lives in comparisonEngine.js. Tolerance defaults to 0 (strict
+    // equality) matching the previous hardcoded behaviour exactly.
+    result.push(comparePolicy({ tcNo, policyNo, uiPremium, raterPremium }));
   }
 
   wb.Sheets["Output_UIPremVsRatePrem"] = xlsx.utils.json_to_sheet(result);
