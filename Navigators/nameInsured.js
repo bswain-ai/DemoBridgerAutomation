@@ -44,8 +44,9 @@ export class NameInsuredNavigator {
   // Named Owner Questions
   // ==================================================
   async namedOwnerQuestions(policyData) {
+    // Column renamed in TC_Template: "Submission for a Named Owner policy?" → "Named Owner?"
     const namedOwnerValue = String(
-      policyData["Submission for a Named Owner policy?"] || ""
+      policyData["Named Owner?"] || ""
     )
       .trim()
       .toLowerCase();
@@ -104,8 +105,9 @@ export class NameInsuredNavigator {
     // ===============================
     // Effective Date
     // ===============================
-    if (policyData.EffectiveDate) {
-      const effectiveDate = policyData.EffectiveDate.toString().replace(
+    // Column renamed in TC_Template: "EffectiveDate" → "Effective Date" (with space)
+    if (policyData["Effective Date"]) {
+      const effectiveDate = policyData["Effective Date"].toString().replace(
         /-/g,
         "/"
       );
@@ -140,7 +142,8 @@ export class NameInsuredNavigator {
     // ===============================
     await this.page.selectOption(
       locators.selectTerm,
-      policyData.TermLength.toString()
+      // Column renamed in TC_Template: "TermLength" → "Term Length" (with space)
+      policyData["Term Length"].toString()
     );
 
     // ===============================

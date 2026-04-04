@@ -73,29 +73,48 @@ export class CoverageNavigator {
   // ==========================================
   // Apply Comp + Coll
   // ==========================================
+  // ── PHASE 2 NOTE ──────────────────────────────────────────────────────────
+  // Column names below are V1-specific (first vehicle only).
+  // TC_Template stores per-vehicle physical damage selections as:
+  //   "V1 Comp Selection", "V1 Coll Selection",
+  //   "V1 Comp Deductible", "V1 Coll Deductible"
+  //
+  // For multi-vehicle support (Phase 2+) this method will need to loop over
+  // all vehicles and apply comp/coll toggles and deductibles per vehicle.
+  //
+  // KNOWN FOLLOW-UP: applyAddonValues() below also reads flat column names
+  // that need V1 prefixes for TC_Template compatibility:
+  //   policyData["RR Limit"]    → policyData["V1 RR Limit"]
+  //   policyData["RR Duration"] → policyData["V1 RR Duration"]
+  //   policyData["RSA Val"]     → policyData["V1 RSA Value"]
+  // These are not breaking today (RR/RSA toggle is policy-level) but will
+  // silently return empty values if the template column names don't match.
+  // ──────────────────────────────────────────────────────────────────────────
   async applyCompAndColl(policyData) {
-    const compSelected = Number(policyData["Veh Comp Selection"]) === 1;
+    // V1 Comp/Coll Selection — "V1 Comp Selection" / "V1 Coll Selection" in TC_Template
+    const compSelected = Number(policyData["V1 Comp Selection"]) === 1;
 
-    const collSelected = Number(policyData["VehColl Selection"]) === 1;
+    const collSelected = Number(policyData["V1 Coll Selection"]) === 1;
 
     if (!compSelected && !collSelected) return;
 
     await this.toggleIfNeeded(locators.compToggle, compSelected);
     await this.toggleIfNeeded(locators.collToggle, collSelected);
 
-    if (compSelected && policyData.CompDeductible) {
+    // V1 deductible values — "V1 Comp Deductible" / "V1 Coll Deductible" in TC_Template
+    if (compSelected && policyData["V1 Comp Deductible"]) {
       await this.selectDeductible(
         locators.compDeductible,
         locators.compDeductibleOption,
-        policyData.CompDeductible,
+        policyData["V1 Comp Deductible"],
       );
     }
 
-    if (collSelected && policyData.CollDeductible) {
+    if (collSelected && policyData["V1 Coll Deductible"]) {
       await this.selectDeductible(
         locators.collDeductible,
         locators.collDeductibleOption,
-        policyData.CollDeductible,
+        policyData["V1 Coll Deductible"],
       );
     }
   }

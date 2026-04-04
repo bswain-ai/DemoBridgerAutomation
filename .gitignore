@@ -6,3 +6,13 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Environment — contains personal BASE_DIR paths and live credentials.
+# Each team member creates their own local .env from .env.example.
+# .env.example IS committed — it is the safe placeholder template.
+# .env is NOT committed — it contains real paths and passwords.
+.env
+
+# Rater output — generated .xlsm copies produced per test run.
+# Large binary files regenerated on every execution — no value in git history.
+/RaterOutput/

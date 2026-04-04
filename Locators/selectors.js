@@ -60,6 +60,7 @@ export const locators = {
 
   insuredRated: `//span[contains(text(),'Insured,')]`,
   updateDriver: `//span[normalize-space()='Update']`,
+  addDriverBtn: `[data-test="add-driver-button"]`,
   driverGender: `#driver_gender`,
   driverMaritalStatus: `[data-test="f_driver_marital_status"]`,
   driverDOB: `[data-test="f_driver_dob"]`,

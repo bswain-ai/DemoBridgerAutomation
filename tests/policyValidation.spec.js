@@ -7,6 +7,7 @@ import xlsx from "xlsx";
 import path from "path";
 import fs from "fs";
 import { execSync } from "child_process";
+import os from "os";
 
 test("Create Rater File and Calculate Premium", async () => {
   test.setTimeout(600000);
@@ -18,27 +19,47 @@ test("Create Rater File and Calculate Premium", async () => {
 
   console.log("Available Sheets:", wb.SheetNames);
 
-  const inputSheet = wb.Sheets["InputData_Policy&RateAccelator"];
+  // TC_Template has a 4-row header block before data rows:
+  //   Row 1 (index 0) = document title — "BridgerAuto V2 – TX Rating Test Cases"
+  //   Row 2 (index 1) = column category labels — "IDENTIFIER", "POLICY", etc.
+  //   Row 3 (index 2) = actual column headers — "TC_ID", "State", "V1 VIN", etc.
+  //   Row 4 (index 3) = input type legend — "INPUT TYPE ▶", "UI", "🔵 [UI+R]", etc.
+  //   Row 5+ (index 4+) = test case data rows — "TC001", "TC002", etc.
+  const inputSheet = wb.Sheets["TC_Template"];
 
   if (!inputSheet) {
-    throw new Error("Input sheet not found");
+    throw new Error(`Input sheet "TC_Template" not found in ${credentials.dataFile}`);
   }
 
-  const rows = xlsx.utils.sheet_to_json(inputSheet, {
-    defval: "",
-    range: 1,
-  });
+  // Read with header:1 to get raw row arrays, then manually build objects
+  // using row 3 as the key source and row 5+ as data. sheet_to_json's built-in
+  // range skipping cannot handle this 4-row header structure cleanly.
+  const rawRows = xlsx.utils.sheet_to_json(inputSheet, { header: 1, defval: "", raw: false });
+  const templateHeaders = rawRows[2] || []; // row 3 (0-indexed: 2) = column headers
 
-  console.log("Headers in Input Sheet:", Object.keys(rows[0] || {}));
+  const rows = rawRows
+    .slice(4)                               // skip title + categories + headers + type legend
+    .map((rowArr) => {
+      const obj = {};
+      templateHeaders.forEach((h, i) => {
+        // Strip asterisks from header names (e.g. "VIN*" -> "VIN") to match
+        // the cleaned keys that buildRaterData() and validateInputSchema() expect.
+        const key = h ? String(h).replace(/\*/g, "").trim() : null;
+        if (key) obj[key] = rowArr[i] ?? "";
+      });
+      return obj;
+    })
+    .filter((row) => row["TC_ID"]);         // skip empty trailing rows at bottom of sheet
+
+  console.log("Headers in Input Sheet (first 10):", templateHeaders.slice(0, 10));
   console.log("Rows Found:", rows.length);
 
   // =========================
   // Rater Output Folder
   // =========================
-  const raterFolder = path.join(
-    path.dirname(credentials.resultFile),
-    "RaterOutput",
-  );
+  // Use credentials.raterOutput (BASE_DIR + RATER_OUTPUT from .env) — single
+  // source of truth instead of re-constructing the path from resultFile.
+  const raterFolder = credentials.raterOutput;
 
   if (!fs.existsSync(raterFolder)) {
     fs.mkdirSync(raterFolder, { recursive: true });
@@ -82,18 +103,17 @@ test("Create Rater File and Calculate Premium", async () => {
     // wrong entry in the premiumResults array fed into the comparison sheet.
     //
     // Fix: build a lookup Map from the UI output sheet keyed on TestCase No,
-    // then look up by the TC_NO read from the input row — the same value
+    // then look up by the TC_ID read from the input row — the same value
     // createPolicy.spec.js wrote into the output sheet. The match is now
     // always exact regardless of how many rows were skipped or their order.
     const uiByTcNo = new Map(
       uiData.map((r) => [r["TestCase No"]?.toString().trim(), r])
     );
 
-    // Read TC_NO from the input row. This must use the same column ("TC NO")
-    // and the same fallback logic as createPolicy.spec.js so the key written
-    // to the output sheet and the key used here are always identical.
+    // Read TC identity from TC_ID column.
+    // Multi-template uses "TC_ID" (underscore) — old template used "TC NO" (space).
     const tcNo =
-      row["TC NO"]?.toString().trim() ||
+      row["TC_ID"]?.toString().trim() ||
       `TC${String(index + 1).padStart(3, "0")}`;
 
     // Look up this TC's UI output row by TC number — not by position.
@@ -107,11 +127,14 @@ test("Create Rater File and Calculate Premium", async () => {
     // =========================
     // Use tcNo as the rater file prefix so the file name always reflects
     // the true TC identity from the input Excel, not the loop position.
+    // Keep .xlsm extension — source rater template is macro-enabled (.xlsm).
+    // Saving as .xlsx risks Excel stripping VBA macros that CalcPolicyTotalPremium
+    // depends on, which would cause the rater.ps1 macro invocation to fail.
     const testCaseId = tcNo;
 
     const newRaterFile = path.join(
       raterFolder,
-      `${testCaseId}_${policyNumber}.xlsx`,
+      `${testCaseId}_${policyNumber}.xlsm`,
     );
 
     console.log("Creating Rater File:", newRaterFile);
@@ -125,37 +148,36 @@ test("Create Rater File and Calculate Premium", async () => {
     // =========================
     // Build Rater Data
     // =========================
-    const raterData = buildRaterData(row, index);
-
-    console.log("Raw Input EffectiveDate:", row["EffectiveDate"]);
-    console.log("EffectiveDate JSON:", raterData["Effective Date"]);
-
-    console.log("Raw Zip:", row["Zip"]);
-    console.log("Zip JSON:", raterData["Zip"]);
-
-    // =========================
-    // Encode JSON (Fix duplicate keys issue)
-    // =========================
-    const cleanData = {};
-
-    Object.keys(raterData).forEach((key) => {
-      const lowerKey = key.toLowerCase();
-      if (!cleanData[lowerKey]) {
-        cleanData[lowerKey] = raterData[key];
-      }
-    });
-
-    const encoded = Buffer.from(JSON.stringify(cleanData)).toString("base64");
+    // buildRaterData(row) returns { policy: {...}, vehicles: [...], drivers: [...] }.
+    // The structured object is passed directly to rater.ps1 as JSON — no key
+    // lowercasing or cleanData transformation needed.
+    const raterData = buildRaterData(row);
 
     // =========================
     // Run PowerShell Rater
     // =========================
-    console.log("Executing Rater Script...");
+    // Write rater input to a temp JSON file instead of passing Base64 on the
+    // command line. Multi-vehicle payloads (8 vehicles + 8 drivers) can exceed
+    // Windows' 32,767-character CLI limit — temp file has no size restriction.
+    // File is written to os.tmpdir() and deleted in the finally block below.
+    const tempJsonPath = path.join(os.tmpdir(), `rater_input_${testCaseId}.json`);
+    console.log("[RATER] Input JSON:", tempJsonPath);
 
-    execSync(
-      `powershell.exe -ExecutionPolicy Bypass -File "./rater.ps1" "${newRaterFile}" "${encoded}"`,
-      { stdio: "inherit" },
-    );
+    try {
+      fs.writeFileSync(tempJsonPath, JSON.stringify(raterData, null, 2), "utf8");
+
+      console.log("Executing Rater Script...");
+      execSync(
+        `powershell.exe -ExecutionPolicy Bypass -File "./rater.ps1" "${newRaterFile}" "${tempJsonPath}"`,
+        { stdio: "inherit" },
+      );
+    } finally {
+      // Delete the temp file whether rater.ps1 succeeded or failed —
+      // prevents accumulation of JSON files in the OS temp directory.
+      if (fs.existsSync(tempJsonPath)) {
+        fs.unlinkSync(tempJsonPath);
+      }
+    }
 
     console.log("Rater execution completed.");
 
@@ -170,7 +192,7 @@ test("Create Rater File and Calculate Premium", async () => {
     // STORE RESULT (CRITICAL FIX)
     // =========================
     premiumResults.push({
-      // testCase must be the TC_NO read from the input Excel — this is the
+      // testCase must be the TC_ID read from the input Excel — this is the
       // key that createPremiumComparison() uses to join rater results against
       // UI output rows. If it doesn't match the value createPolicy wrote into
       // the output sheet, every comparison row will show the wrong premium.

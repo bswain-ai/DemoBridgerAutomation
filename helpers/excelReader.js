@@ -251,7 +251,7 @@ export function validateInputSchema(rows) {
   if (!rows || rows.length === 0) {
     throw new Error(
       "[Schema Validation Failed] Input Excel sheet is empty — no data rows found " +
-      "in 'InputData_Policy&RateAccelator'."
+      "in 'TC_Template' sheet of the multi-vehicle input file."
     );
   }
 
@@ -260,34 +260,49 @@ export function validateInputSchema(rows) {
   // throw a cryptic error mid-run or silently use the wrong value.
   // Keeping this list here (not in credentials.js) so it stays co-located
   // with the Excel reader — the layer that owns column-name knowledge.
+  //
+  // PHASE 2 UPDATE: Column names updated from the flat single-vehicle
+  // template to the multi-vehicle template (BridgerAuto_TX_TC_Template_Multi).
+  // V1/D1 prefixes are the actual header names in the new template —
+  // verified against the file on 2026-04-03. Single-vehicle test cases
+  // are a special case of multi (Vehicle Count=1, Driver Count=1) and
+  // must include V1/D1 prefixed columns to pass this validator.
   const REQUIRED_COLUMNS = [
-    // ── Policy / Submission ──────────────────────────────
+    // ── Policy / Submission ──────────────────────────────────────
+    // Column names match the multi-template TC_Template sheet exactly.
+    // "TC_ID" uses underscore — the template header is TC_ID not "TC ID".
+    "TC_ID",            // test case identity — TC_NO anchor pattern requires this
     "State",            // selectOption in nameInsured — throws if missing
     "Program",          // selectOption in nameInsured — throws if missing
-    "EffectiveDate",    // date field in nameInsured + rater premium input
-    "TermLength",       // selectOption in nameInsured — throws if missing
-    // ── Address ─────────────────────────────────────────
-    "Address",          // explicit throw in addressNavigator if missing
-    "City",             // explicit throw in addressNavigator if missing
-    "Zip",              // explicit throw in addressNavigator if missing
-    // ── Vehicle ─────────────────────────────────────────
-    "VIN",              // test skips entirely if missing (createPolicy guard)
-    "VehYear",          // year dropdown click — throws if missing
-    "VehUse",           // selectOption({label}) — throws if missing/invalid
-    "PurchaseStatus",   // selectOption({label}) — throws if missing
-    "VehDamage",        // selectOption({label}) — throws if missing
-    "Make",             // rater field — wrong premium if missing
-    "Model",            // rater field — wrong premium if missing
-    // ── Driver ──────────────────────────────────────────
-    "DriverGender",     // selectOption({label}) — throws if missing
-    "DMaritalStatus",   // selectOption({label}) — throws if missing
-    "DriverDob",        // .toString() called directly — throws if undefined
-    "License State",    // MUI autocomplete type — throws if missing
-    "LicenseNo",        // .toString() called directly — throws if undefined
-    "DLicenseStatus",   // selectOption({label}) — throws if missing
-    "DLicenseYears",    // .toString() called directly — throws if undefined
-    "DLicenseMonths",   // .toString() called directly — throws if undefined
-    "DOccupation",      // occupation dropdown click — throws if missing
+    "Effective Date",   // date field in nameInsured + rater input (was: EffectiveDate)
+    "Term Length",      // selectOption in nameInsured — throws if missing (was: TermLength)
+    // ── Address ──────────────────────────────────────────────────
+    "Garage Address",   // MUI autocomplete — throws if missing (was: Address)
+    "Garage City",      // address validation — throws if missing (was: City)
+    "Garage Zip",       // rater territory lookup — wrong premium if missing (was: Zip)
+    // ── Policy counts ────────────────────────────────────────────
+    // Used by createPolicy.spec.js to know how many V/D loops to run.
+    "Vehicle Count",    // drives V1–V8 loop — throws if missing or zero
+    "Driver Count",     // drives D1–D8 loop — throws if missing or zero
+    // ── Vehicle 1 (minimum required — additional vehicles are optional) ──
+    // V1 prefix is the literal column header in the multi-template.
+    // Single-vehicle test cases use V1 columns only (Vehicle Count = 1).
+    "V1 VIN",           // test skips entirely if blank (createPolicy guard)
+    "V1 Year",          // year dropdown click — throws if missing
+    "V1 Make",          // rater field — wrong premium if missing
+    "V1 Model",         // rater field — wrong premium if missing
+    "V1 Vehicle Use",   // selectOption({label}) — throws if missing/invalid
+    // ── Driver 1 (minimum required — additional drivers are optional) ────
+    // D1 prefix is the literal column header in the multi-template.
+    // Single-driver test cases use D1 columns only (Driver Count = 1).
+    "D1 Gender",        // selectOption({label}) — throws if missing
+    "D1 Marital Status",// selectOption({label}) — throws if missing
+    "D1 DOB",           // .toString() called directly — throws if undefined
+    "D1 License State", // MUI autocomplete type — throws if missing
+    "D1 License Status",// selectOption({label}) — throws if missing
+    "D1 License Years", // .fill() called directly — throws if undefined
+    "D1 License Months",// .fill() called directly — throws if undefined
+    "D1 Occupation",    // occupation dropdown click — throws if missing
   ];
 
   // Extract the actual column names present in the parsed Excel data.
@@ -303,7 +318,7 @@ export function validateInputSchema(rows) {
   if (missingColumns.length > 0) {
     throw new Error(
       `[Schema Validation Failed] ${missingColumns.length} required column(s) missing ` +
-      `from 'InputData_Policy&RateAccelator':\n` +
+      `from the 'TC_Template' sheet:\n` +
       missingColumns.map((c) => `  • ${c}`).join("\n") +
       "\n\nAdd these columns to the input Excel before running."
     );
