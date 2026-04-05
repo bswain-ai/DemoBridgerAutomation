@@ -48,10 +48,11 @@ export class DriverNavigator {
       .selectOption({ label: driver.maritalStatus });
 
     // ─── DATE OF BIRTH ──────────────────────────────────────────────────────
-    // dob is pre-formatted MM-DD-YYYY by dateFormatUSA() in raterHelper
+    // driver.dob is MM-DD-YYYY (rater format from dateFormatUSA).
+    // The UI DOB field expects MM/DD/YYYY — convert dashes to slashes.
     await this.page
       .locator(locators.driverDOB)
-      .fill(driver.dob.toString());
+      .fill(driver.dob.toString().replace(/-/g, "/"));
 
     // ─── LICENSE STATE (MUI Autocomplete) ───────────────────────────────────
     // MUI Autocomplete requires typing into the field to open the dropdown,

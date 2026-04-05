@@ -14,10 +14,11 @@ export class AddressNavigator {
 
   async enterAddress(policyData) {
     try {
-      const street = policyData.Address;
-      const city = policyData.City;
-      const state = policyData.State;
-      const zip = policyData.Zip;
+      // Column names updated for TC_Template multi-vehicle format
+      const street = policyData["Garage Address"];
+      const city   = policyData["Garage City"];
+      const state  = policyData.State;
+      const zip    = policyData["Garage Zip"];
 
       if (!street || !city || !state || !zip) {
         console.error("Missing fields:", { street, city, state, zip });

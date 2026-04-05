@@ -48,18 +48,6 @@ function dateFormatUSA(dateValue) {
   return `${mm}-${dd}-${yyyy}`;
 }
 
-/**
- * Normalize Vehicle Use value for the rater.
- * The input template stores "Business" but the rater cell expects "BusinessUse".
- * All other values (Pleasure, Commute, Farm) pass through unchanged.
- */
-function normalizeVehUse(value) {
-  if (!value) return "";
-  const v = String(value).trim();
-  if (v === "Business") return "BusinessUse";
-  return v;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,8 +123,7 @@ export function buildRaterData(row) {
       year:             toNum(g(`V${n} Year`)),
       make:             g(`V${n} Make`),
       model:            g(`V${n} Model`),
-      // "Business" in the template → "BusinessUse" in the rater cell
-      vehicleUse:       normalizeVehUse(g(`V${n} Vehicle Use`)),
+      vehicleUse:       g(`V${n} Vehicle Use`),
       // ISO comp/coll symbols — pre-populated from the rater's symbol lookup
       // tables after the first quote run. Used for premium calculation.
       compSymbol:       toNum(g(`V${n} Comp Symbol`)),

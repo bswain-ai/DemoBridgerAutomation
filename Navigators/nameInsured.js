@@ -107,10 +107,22 @@ export class NameInsuredNavigator {
     // ===============================
     // Column renamed in TC_Template: "EffectiveDate" → "Effective Date" (with space)
     if (policyData["Effective Date"]) {
-      const effectiveDate = policyData["Effective Date"].toString().replace(
-        /-/g,
-        "/"
-      );
+      // Excel stores dates as serial numbers (days since 1900-01-01).
+      // When xlsx reads a cell without { cellDates: true }, numeric date cells
+      // come through as integers (e.g. 46117 instead of "04/05/2026").
+      // Convert serial → JS Date → MM/DD/YYYY before filling the field.
+      const rawDate = policyData["Effective Date"];
+      let effectiveDate;
+      if (typeof rawDate === "number") {
+        // xlsx serial: day 1 = Jan 1 1900; adjust for Excel's leap-year bug
+        const jsDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+        const mm = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(jsDate.getUTCDate()).padStart(2, "0");
+        const yyyy = jsDate.getUTCFullYear();
+        effectiveDate = `${mm}/${dd}/${yyyy}`;
+      } else {
+        effectiveDate = rawDate.toString().replace(/-/g, "/");
+      }
 
       const dateField = this.page.locator(locators.effectiveDate);
 
@@ -161,6 +173,11 @@ export class NameInsuredNavigator {
   // Fill Contact Details
   // ==================================================
   async fillContactDetails(phone, email) {
+    // Wait for the contact details page to fully load before expecting fields.
+    // Without this, the cell phone input may not yet be in the DOM after the
+    // modal/continue transition, causing a 50s timeout.
+    await this.page.waitForLoadState("networkidle");
+
     await expect(this.page.locator(locators.cellPhone)).toBeVisible({
       timeout: 50000,
     });
