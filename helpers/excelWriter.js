@@ -70,10 +70,29 @@ export function writeRow(sheet, rowData, tcNo) {
   }
 
   // No existing row found for this TC — append after the last written row.
-  // On the very first run, range.e.r is 0 (header only), so the first
-  // data row is written to row 1, which is correct.
+  //
+  // WHY THE BACKWARD SCAN: The output Excel template contains pre-formatted
+  // blank rows 2–8 (Excel). The xlsx !ref covers these rows, so range.e.r
+  // reflects the last blank row rather than the last row with actual data.
+  // Using `range.e.r + 1` directly caused TC001 to land on Excel row 9
+  // instead of row 2 — every subsequent TC was also offset by 7 rows.
+  //
+  // FIX: Scan backward from range.e.r to find the actual last populated row
+  // by checking column 0 (the TC_NO column — first column of every data row).
+  // If no data rows exist yet, lastDataRow stays 0 and targetRow becomes 1
+  // (0-indexed) = Excel row 2. This guarantees the first write always lands
+  // on the row immediately after the header regardless of how many blank
+  // template rows the sheet contains.
   if (targetRow === null) {
-    targetRow = range.e.r + 1;
+    let lastDataRow = 0;
+    for (let r = range.e.r; r >= 1; r--) {
+      const cell = sheet[xlsx.utils.encode_cell({ r, c: 0 })];
+      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== "") {
+        lastDataRow = r;
+        break;
+      }
+    }
+    targetRow = lastDataRow + 1;
   }
 
   rowValues.forEach((value, colIndex) => {

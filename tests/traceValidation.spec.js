@@ -1,5 +1,6 @@
 import { test } from "@playwright/test";
 import xlsx from "xlsx";
+import { credentials } from "../config/credentials.js";
 
 import { getFailedPolicies } from "../helpers/excelReader.js";
 import { login } from "../helpers/loginHelper.js";
@@ -16,7 +17,8 @@ import {
 test("Underwriter validation for failed policies", async ({ page }) => {
   test.setTimeout(600000);
 
-  const filePath = process.env.DATA_RESULT;
+  // Use credentials.resultFile (BASE_DIR + filename) — not raw DATA_RESULT env var
+  const filePath = credentials.resultFile;
 
   console.log("FILE PATH:", filePath);
 

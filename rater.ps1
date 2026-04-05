@@ -16,14 +16,14 @@ $json = Get-Content -Path $jsonPath -Raw
 $data = $json | ConvertFrom-Json
 
 $tcId = $data.policy.tcId
-Write-Host "[RATER][$tcId] Input loaded — $($data.vehicles.Count) vehicle(s), $($data.drivers.Count) driver(s)"
+Write-Host "[RATER][$tcId] Input loaded - $($data.vehicles.Count) vehicles, $($data.drivers.Count) drivers"
 
 # ── STALE EXCEL CHECK ─────────────────────────────────────────────────────────
 # A prior script crash may leave Excel running with a file lock on the rater
 # template. Kill any orphaned Excel process before attempting to open the file.
 $stale = Get-Process -Name "excel" -ErrorAction SilentlyContinue
 if ($stale) {
-    Write-Host "[RATER][$tcId] WARNING: Stale Excel process found — killing before open"
+    Write-Host "[RATER][$tcId] WARNING: Stale Excel process found - killing before open"
     $stale | Stop-Process -Force
     Start-Sleep -Seconds 1
 }
