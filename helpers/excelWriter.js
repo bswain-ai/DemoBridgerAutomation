@@ -431,7 +431,7 @@ export function buildComparisonJSON(policyNo, traceData) {
         },
         rater: {
           factor: Number(raterValues.factor ?? 0),
-          calc: Number(raterValues.calc ?? 0),
+          calc: raterValues.calc !== null ? Number(raterValues.calc) : null,
         },
       };
     });
@@ -448,8 +448,31 @@ export function getMismatches(comparisonJSON) {
 
   const TOLERANCE = 0.001;
 
-  Object.entries(data).forEach(([type, coverages]) => {
-    Object.entries(coverages).forEach(([coverage, values]) => {
+  // Coverage-level skip rules — applied to BOTH factor and calc comparisons.
+  // Each key is a factor type; the value lists coverage codes excluded from
+  // all comparisons for that type.
+  //
+  // "Limits / Deductible" — BI and PD:
+  //   Deductibles are a physical-damage concept (COMP/COLL only). The UI
+  //   price trace displays 1.000 for the BI/PD deductible factor because
+  //   it has no deductible — the value is a neutral multiplier placeholder.
+  //   In the rater, RateOrder row 94 (DEDUCTIBLE FACTOR) leaves the BI and
+  //   PD cells blank. getRaterCoverageData() reads blank cells as 0, so the
+  //   comparison produces 1.000 (UI) vs 0.000 (Rater) on every single policy
+  //   regardless of what coverages are selected. This is correct rater
+  //   behaviour, not a premium error — skip it here to suppress the noise.
+  const SKIP_FACTOR_COVERAGE = {
+    "Limits / Deductible": ["BI", "PD"],
+  };
+
+  for (const [type, coverages] of Object.entries(data)) {
+    for (const [coverage, values] of Object.entries(coverages)) {
+      // Skip combinations that are structurally mismatched between the UI
+      // trace and the rater sheet — these are not genuine rating errors.
+      if (SKIP_FACTOR_COVERAGE[type]?.includes(coverage)) {
+        continue;
+      }
+
       const { ui, rater } = values;
 
       // Factor comparison with tolerance
@@ -465,8 +488,12 @@ export function getMismatches(comparisonJSON) {
         });
       }
 
-      // Calc comparison with tolerance
-      if (Math.abs(ui.calc - rater.calc) > TOLERANCE) {
+      // Calc comparison with tolerance.
+      // Skip if rater.calc is null — null means this factor's contribution
+      // is absorbed into a cumulative row (128/129) and no dedicated calc
+      // cell exists. Comparing ui.calc against 0 (the JS coercion of null)
+      // would produce false mismatches for any active factor in that group.
+      if (rater.calc !== null && Math.abs(ui.calc - rater.calc) > TOLERANCE) {
         mismatches.push({
           policyNo,
           type,
@@ -477,8 +504,8 @@ export function getMismatches(comparisonJSON) {
           diff: ui.calc - rater.calc,
         });
       }
-    });
-  });
+    }
+  }
 
   return mismatches;
 }
