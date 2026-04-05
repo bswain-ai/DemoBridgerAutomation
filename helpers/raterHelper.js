@@ -262,29 +262,57 @@ export function getRaterCoverageData(policyNo, type) {
 
   // Each entry maps a factor name to:
   //   factor: the row number containing the rater input/factor value
-  //   calc:   the row number containing the calculated premium contribution
+  //   calc:   the row number containing the calculated premium contribution,
+  //           or null if the factor is absorbed into a cumulative row.
+  //
+  // Multi-vehicle rater layout (confirmed from TC002 RateOrder sheet dump):
+  //   Factor block: rows 86–112  (+38 from old single-vehicle rows 48–72)
+  //   Calc block:   rows 118–130
+  //   Row 128 = "× SURCHARGE FACTOR" — cumulative surcharge product
+  //   Row 129 = "× DISCOUNT FACTOR"  — cumulative discount product
+  //   Row 130 = "ANTI-THEFT DISCOUNT (COMP ONLY)"
+  //
+  // Individual surcharge/discount entries use calc: null because the
+  // multi-vehicle rater collapses all per-factor contributions into the
+  // single cumulative rows 128/129. Reading the old individual calc row
+  // numbers (91–94, 98–104) now lands on unrelated cell content.
+  //
+  // New entries (rows not present in single-vehicle rater):
+  //   "Learner's Permit"    row 100 — surcharge
+  //   "Vehicle Surcharge"   row 102 — surcharge
+  //   "Renewal Discount"    row 107 — discount
+  //   "Vehicle Discount"    row 111 — discount (calc: 129 to track cumulative)
+  //   "Anti-Theft Discount" row 112 — discount (COMP only, own calc row 130)
+  //
+  // Order change: old rater had Defensive(70)→Drug(71)→Rollover(72).
+  // New rater has Rollover(108)→Defensive(109)→Drug(110).
   const rowMap = {
-    Base:                             { factor: 48, calc: 80 },
-    Region:                           { factor: 49, calc: 81 },
-    Profile:                          { factor: 50, calc: 82 },
-    Household:                        { factor: 51, calc: 83 },
-    "Policy class":                   { factor: 52, calc: 84 },
-    "Model year":                     { factor: 53, calc: 85 },
-    Symbol:                           { factor: 54, calc: 86 },
-    "Non-Owner / FR":                 { factor: 55, calc: 87 },
-    "Limits / Deductible":            { factor: 56, calc: 88 },
-    Term:                             { factor: 57, calc: 89 },
-    "Sum of Surcharges":              { factor: 58, calc: 90 },
-    "License Type Surcharge":         { factor: 59, calc: 91 },
-    "Business Use":                   { factor: 60, calc: 92 },
-    "Violations Surcharge":           { factor: 61, calc: 93 },
-    "Unacceptable Risk Surcharge":    { factor: 62, calc: 94 },
-    "Sum of discounts":               { factor: 65, calc: 91 },
-    "Multi-Car Discount":             { factor: 66, calc: 98 },
-    "Prior Coverage Discount":        { factor: 67, calc: 99 },
-    "Defensive Driver Discount":      { factor: 70, calc: 102 },
-    "Drug/Alcohol Awareness Discount":{ factor: 71, calc: 103 },
-    "Rollover Discount":              { factor: 72, calc: 104 },
+    Base:                             { factor: 86, calc: 118 },
+    Region:                           { factor: 87, calc: 119 },
+    Profile:                          { factor: 88, calc: 120 },
+    Household:                        { factor: 89, calc: 121 },
+    "Policy class":                   { factor: 90, calc: 122 },
+    "Model year":                     { factor: 91, calc: 123 },
+    Symbol:                           { factor: 92, calc: 124 },
+    "Non-Owner / FR":                 { factor: 93, calc: 125 },
+    "Limits / Deductible":            { factor: 94, calc: 126 },
+    Term:                             { factor: 95, calc: 127 },
+    "Sum of Surcharges":              { factor: 96, calc: 128 },
+    "License Type Surcharge":         { factor: 97, calc: null },
+    "Business Use":                   { factor: 98, calc: null },
+    "Violations Surcharge":           { factor: 99, calc: null },
+    "Learner's Permit":               { factor: 100, calc: null },
+    "Unacceptable Risk Surcharge":    { factor: 101, calc: null },
+    "Vehicle Surcharge":              { factor: 102, calc: null },
+    "Sum of discounts":               { factor: 104, calc: 129 },
+    "Multi-Car Discount":             { factor: 105, calc: null },
+    "Prior Coverage Discount":        { factor: 106, calc: null },
+    "Renewal Discount":               { factor: 107, calc: null },
+    "Rollover Discount":              { factor: 108, calc: null },
+    "Defensive Driver Discount":      { factor: 109, calc: null },
+    "Drug/Alcohol Awareness Discount":{ factor: 110, calc: null },
+    "Vehicle Discount":               { factor: 111, calc: 129 },
+    "Anti-Theft Discount":            { factor: 112, calc: 130 },
   };
 
   const rows = rowMap[type];
@@ -294,12 +322,16 @@ export function getRaterCoverageData(policyNo, type) {
   }
 
   const get = (col, row) => Number(sheet[`${col}${row}`]?.v || 0);
+  // calc: null means this factor is absorbed into a cumulative row.
+  // Return null for calc fields rather than reading the wrong row.
+  const getCalc = (col) =>
+    rows.calc !== null ? get(col, rows.calc) : null;
 
   // Columns: C = BI, D = PD, K = COMP, L = COLL
   return {
-    BI:   { factor: get("C", rows.factor), calc: get("C", rows.calc) },
-    PD:   { factor: get("D", rows.factor), calc: get("D", rows.calc) },
-    COMP: { factor: get("K", rows.factor), calc: get("K", rows.calc) },
-    COLL: { factor: get("L", rows.factor), calc: get("L", rows.calc) },
+    BI:   { factor: get("C", rows.factor), calc: getCalc("C") },
+    PD:   { factor: get("D", rows.factor), calc: getCalc("D") },
+    COMP: { factor: get("K", rows.factor), calc: getCalc("K") },
+    COLL: { factor: get("L", rows.factor), calc: getCalc("L") },
   };
 }

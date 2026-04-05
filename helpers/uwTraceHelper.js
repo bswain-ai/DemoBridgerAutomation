@@ -81,6 +81,7 @@ export class UwTraceHelper {
         "Prior Coverage Discount",
         "Defensive Driver Discount",
         "Drug/Alcohol Awareness Discount",
+        "Vehicle Discount",
         "Rollover Discount",
         "Sum of discounts",
       ];
@@ -104,10 +105,32 @@ export class UwTraceHelper {
         console.log(`\n Processing: ${label}`);
         result[label] = {};
 
-        // Strong locator
+        // Exact-match locator — required because the price trace table contains
+        // two types of rows that share label text:
+        //
+        //   GROUP HEADER row: first <td> = "Vehicle Discount\nDiscount"
+        //                     second <td> = "Policy, 1 Vehicle"
+        //   DATA row:         first <td> = "Vehicle Discount"  (exact)
+        //                     second <td> = "0.010/0.990"       (BI factor/calc)
+        //
+        // The old locator used td:has-text() which is a SUBSTRING match.
+        // "Vehicle Discount" is a substring of "Vehicle Discount\nDiscount",
+        // so .first() always picked the group header, whose coverage cells
+        // all read "Policy, 1 Vehicle" — filtered out by the rawText.includes("Policy")
+        // check below. This silently produced an empty result for every
+        // "Vehicle Discount" row, hiding a real UI vs Rater mismatch.
+        //
+        // The regex ^label$ anchors force an exact match on the cell's normalized
+        // text content, skipping the group header and landing on the data row.
+        //
+        // Affected labels confirmed via DOM inspection (TC002 policy trace):
+        //   "Vehicle Discount"    — group header at TR[12], data row at TR[39]
+        //   "Anti-Theft Discount" — group header at TR[11] (same pattern)
         const row = this.page
           .locator("tr", {
-            has: this.page.locator(`td:has-text("${label}")`),
+            has: this.page.locator("td").filter({
+              hasText: new RegExp(`^${label}$`),
+            }),
           })
           .first();
 
