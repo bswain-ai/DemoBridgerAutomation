@@ -81,14 +81,6 @@ export class CoverageNavigator {
   //
   // For multi-vehicle support (Phase 2+) this method will need to loop over
   // all vehicles and apply comp/coll toggles and deductibles per vehicle.
-  //
-  // KNOWN FOLLOW-UP: applyAddonValues() below also reads flat column names
-  // that need V1 prefixes for TC_Template compatibility:
-  //   policyData["RR Limit"]    → policyData["V1 RR Limit"]
-  //   policyData["RR Duration"] → policyData["V1 RR Duration"]
-  //   policyData["RSA Val"]     → policyData["V1 RSA Value"]
-  // These are not breaking today (RR/RSA toggle is policy-level) but will
-  // silently return empty values if the template column names don't match.
   // ──────────────────────────────────────────────────────────────────────────
   async applyCompAndColl(policyData) {
     // V1 Comp/Coll Selection — "V1 Comp Selection" / "V1 Coll Selection" in TC_Template
@@ -140,8 +132,10 @@ export class CoverageNavigator {
   async applyAddonValues(policyData) {
     // ---------- Rental ----------
     if (Number(policyData["RR Selection"]) === 1) {
-      const rrLimit = policyData["RR Limit"];
-      const rrDuration = policyData["RR Duration"];
+      // "V1 RR Limit" / "V1 RR Duration" match the TC_Template column names.
+      // Old flat names "RR Limit" / "RR Duration" returned undefined on TC_Template rows.
+      const rrLimit = policyData["V1 RR Limit"];
+      const rrDuration = policyData["V1 RR Duration"];
 
       // ===== RR LIMIT =====
       if (rrLimit) {
@@ -166,7 +160,9 @@ export class CoverageNavigator {
 
     // ---------- Roadside ----------
     if (Number(policyData["RSA Selection"]) === 1) {
-      const rsaVal = policyData["RSA Val"];
+      // "V1 RSA Value" matches the TC_Template column name.
+      // Old flat name "RSA Val" returned undefined on TC_Template rows.
+      const rsaVal = policyData["V1 RSA Value"];
 
       if (rsaVal) {
         const rsaDropdown = this.page.locator(locators.rsaLimit);

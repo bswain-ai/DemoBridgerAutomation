@@ -74,10 +74,15 @@ export class PremiumService {
     };
   }
 
-  async captureFees(policyData) {
+  // drivers[] is the structured array from buildRaterData() — one entry per D{n} slot.
+  // Default to [] so existing callers that pass only policyData don't break.
+  async captureFees(policyData, drivers = []) {
     return {
       SR22Fee:
-        policyData.SR22 === 1
+        // SR22 fee is displayed if ANY driver on the policy has sr22 = 1.
+        // Old code read flat policyData.SR22 which no longer exists in the
+        // multi-template — it always evaluated false, so SR22Fee was always "".
+        drivers.some((d) => d.sr22 === 1)
           ? await this.getText(locators.frFee)
           : "",
       fraudFee: await this.getText(locators.fraudFee),
