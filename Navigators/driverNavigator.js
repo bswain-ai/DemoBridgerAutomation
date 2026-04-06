@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { locators } from "../Locators/selectors.js";
+import { FakerData } from "../testData/fakerData.js";
 
 export class DriverNavigator {
   constructor(page) {
@@ -35,6 +36,15 @@ export class DriverNavigator {
       await this.page.locator(locators.addDriverBtn).click({ timeout: 10000 });
     }
 
+    // ─── FIRST / LAST NAME (additional drivers only) ────────────────────────
+    // The primary insured (driverIndex === 0) is pre-populated from the named
+    // insured form — no fill needed. Additional drivers open a blank drawer.
+    // Use FakerData to generate a realistic name; the rater does not use it.
+    if (driverIndex > 0) {
+      await this.page.locator(locators.driverFirstName).fill(FakerData.getFirstName());
+      await this.page.locator(locators.driverLastName).fill(FakerData.getLastName());
+    }
+
     // ─── GENDER ─────────────────────────────────────────────────────────────
     // From "D{n} Gender" column — e.g. "Male", "Female"
     await this.page
@@ -53,6 +63,19 @@ export class DriverNavigator {
     await this.page
       .locator(locators.driverDOB)
       .fill(driver.dob.toString().replace(/-/g, "/"));
+
+    // ─── RELATION TO NAMED INSURED (additional drivers only) ────────────────
+    // The Add Driver drawer shows "Relation to Named Insured" between DOB and
+    // License State. Not present (or pre-set) for the primary insured drawer.
+    // Valid: Child, Domestic Partner, Employee, Non-Relative - Other,
+    // Parent, Relative - Other, Sibling, Significant Other, Spouse, Unknown.
+    // Defaults to Spouse if column is blank in template.
+    if (driverIndex > 0) {
+      const relation = driver.relationship || "Spouse";
+      await this.page
+        .locator(locators.driverRelation)
+        .selectOption({ label: relation });
+    }
 
     // ─── LICENSE STATE (MUI Autocomplete) ───────────────────────────────────
     // MUI Autocomplete requires typing into the field to open the dropdown,
@@ -109,8 +132,12 @@ export class DriverNavigator {
     // ─── SAVE DRIVER ────────────────────────────────────────────────────────
     await this.page.locator(locators.driverSubmitBtn).click({ timeout: 10000 });
 
-    // Brief pause for the drawer close animation before any next action
-    await this.page.waitForTimeout(1000);
+    // Wait for driver drawer modal to fully close before proceeding.
+    // The MuiDrawer backdrop intercepts pointer events during close
+    // animation — clicking Next too early causes a 10s timeout on
+    // the next-btn locator.
+    await this.page.locator(locators.driverSubmitBtn)
+      .waitFor({ state: 'hidden', timeout: 10000 });
 
     // ─── ADVANCE PAGE (last driver only) ────────────────────────────────────
     // Intermediate drivers: save and stay on the drivers page.

@@ -36,16 +36,39 @@ function getValue(data, ...keys) {
 /**
  * Convert any date value (Excel serial number, ISO string, or JS Date)
  * to MM-DD-YYYY string format expected by the rater.
- * Returns the original value unchanged if it cannot be parsed as a date.
+ *
+ * IMPORTANT — serial number handling:
+ *   xlsx reads date cells as raw Excel serial numbers (days since 1900-01-01)
+ *   when `raw: false` is not set. new Date(serial) interprets the number as
+ *   MILLISECONDS since Unix epoch — producing a nonsense date near 1970.
+ *   This function detects numeric input and applies the correct conversion:
+ *     (serial − 25569) × 86400 × 1000 ms  →  Unix timestamp
+ *   25569 = Excel serial for 1970-01-01 (the Excel-to-Unix epoch offset).
+ *   UTC accessors (getUTCMonth etc.) are used to avoid local-timezone shifts.
  */
 function dateFormatUSA(dateValue) {
   if (!dateValue) return "";
-  const d = new Date(dateValue);
+  let d;
+  if (typeof dateValue === "number") {
+    // Excel serial → Unix timestamp (days × seconds/day × ms/second)
+    d = new Date((dateValue - 25569) * 86400 * 1000);
+  } else {
+    d = new Date(dateValue);
+  }
   if (isNaN(d)) return dateValue;
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yyyy = d.getFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
   return `${mm}-${dd}-${yyyy}`;
+}
+
+/**
+ * Same as dateFormatUSA() but returns MM/DD/YYYY (slashes) for UI date fields.
+ * UI date pickers require slashes; the rater expects dashes — kept separate
+ * so callers are explicit about which format they need.
+ */
+function dateFormatSlash(dateValue) {
+  return dateFormatUSA(dateValue).replace(/-/g, "/");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +172,13 @@ export function buildRaterData(row) {
       // but are NOT written to the rater spreadsheet by rater.ps1.
       // They are excluded from the rater JSON payload intentionally.
       msrpCostNew:    g(`V${n} MSRP/Cost New`),   // dollar value shown on vehicle card
-      purchaseDate:   g(`V${n} Purchase Date`),    // MM/DD/YYYY; raw string from template
+      // dateFormatSlash() handles both Excel serial numbers (e.g. 46035) and
+      // unpadded date strings (e.g. "1/13/2026"), producing zero-padded
+      // MM/DD/YYYY — the format required by the UI purchase date field.
+      // Using dateFormatUSA().replace() was insufficient because xlsx returns
+      // the raw serial number (not a formatted string) when raw:false is absent,
+      // and new Date(serial) misinterprets it as milliseconds → wrong date.
+      purchaseDate:   dateFormatSlash(g(`V${n} Purchase Date`)),
       purchaseStatus: g(`V${n} Purchase Status`),  // "New" or "Used"
       vehDamage:      g(`V${n} Veh Damage`),       // e.g. "None", "Minor", "Major"
       salvage:        toNum(g(`V${n} Salvage`)),   // 1 = Yes (salvage title), 0 = No
@@ -169,6 +198,10 @@ export function buildRaterData(row) {
       gender:               g(`D${n} Gender`),
       maritalStatus:        g(`D${n} Marital Status`),
       dob:                  dateFormatUSA(dob),
+      // UI-ONLY: relationship is not a rater input but is required by the
+      // Add Driver drawer. Null for D1 (primary insured, no relationship
+      // field shown). For D2–D8 reads from template; defaults to "Spouse".
+      relationship:         n === 1 ? null : (g(`D${n} Relationship to Named Insured`) || "Spouse"),
       licenseState:         g(`D${n} License State`),
       licenseStatus:        g(`D${n} License Status`),
       // "License Type" (Full / Restricted / Learner's Permit) has no dedicated

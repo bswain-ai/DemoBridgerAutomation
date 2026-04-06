@@ -29,6 +29,14 @@ export class VehicleNavigator {
     // Same button for "Update" (vehicle 1) and "+ Add vehicle" (vehicles 2–8)
     await this.page.locator(locators.addVehicleBtn).click({ timeout: 10000 });
 
+    // Wait for the vehicle year dropdown to be visible before clicking it.
+    // For the second vehicle, the "+ Add vehicle" button triggers a drawer
+    // open animation. Without this wait, vehicleYear.click() fires before
+    // the drawer is fully interactive, causing a timeout or stale-element error.
+    await this.page
+      .locator(locators.vehicleYear)
+      .waitFor({ state: "visible", timeout: 10000 });
+
     // ─── VEHICLE YEAR ───────────────────────────────────────────────────────
     // year comes from "V{n} Year" column via buildRaterData()
     await this.page.locator(locators.vehicleYear).click({ timeout: 10000 });
@@ -47,10 +55,12 @@ export class VehicleNavigator {
     // ─── SAVE ───────────────────────────────────────────────────────────────
     await this.page.locator(locators.saveButton).click({ timeout: 10000 });
 
-    // Confirm the vehicle card now appears in the vehicles list by VIN
+    // Confirm save succeeded — VIN card visible in list means drawer closed cleanly.
+    // Not waiting for saveButton hidden: a validation error keeps the drawer open
+    // indefinitely, masking the real failure. 30s covers slow API responses.
     await expect(
       this.page.locator(locators.addedVehicle(vehicle.vin))
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30000 });
 
     // ─── ADVANCE PAGE (last vehicle only) ───────────────────────────────────
     // Intermediate vehicles: save and stay on the vehicles page.
@@ -72,9 +82,9 @@ export class VehicleNavigator {
   // label to appear — which confirms the VIN lookup returned a result.
   // ─────────────────────────────────────────────────────────────────────────
   async searchVIN(vin) {
-    const vinInput       = this.page.locator(locators.vehicleVin);
+    const vinInput        = this.page.locator(locators.vehicleVin);
     const searchVinButton = this.page.locator(locators.searchVinBtn);
-    const makeField      = this.page.locator(locators.filledMakeTextBox);
+    const makeField       = this.page.locator(locators.filledMakeTextBox);
 
     await vinInput.fill("");
     await vinInput.type(vin.toString(), { delay: 300 });
@@ -102,31 +112,36 @@ export class VehicleNavigator {
     // "BusinessUse" for the rater, but the UI dropdown uses the original
     // label values from the application. vehicleUse stores the normalized
     // value; pass it directly and ensure the template uses the UI label.
-    await this.page
-      .locator(locators.vehicleUse)
+    //
+    // Explicit waitFor before selectOption: for the second (and subsequent)
+    // vehicles, the drawer DOM may reuse existing nodes — the MSRP field
+    // becomes visible before Vehicle Use re-renders. Without this wait,
+    // selectOption fires on a stale or not-yet-ready element, silently
+    // leaving the dropdown at its default value.
+    await this.page.locator(locators.vehicleUse)
+      .waitFor({ state: "visible", timeout: 10000 });
+    await this.page.locator(locators.vehicleUse)
       .selectOption({ label: vehicle.vehicleUse });
 
     // Purchase Date — from "V{n} Purchase Date" column (UI-only)
-    await this.page
-      .locator(locators.purchasedDate)
+    await this.page.locator(locators.purchasedDate)
       .fill(vehicle.purchaseDate ? vehicle.purchaseDate.toString() : "");
 
     // Purchase Status — "New" or "Used" from "V{n} Purchase Status" column
-    await this.page
-      .locator(locators.purchasedStatus)
+    await this.page.locator(locators.purchasedStatus)
       .selectOption({ label: vehicle.purchaseStatus });
 
     // Vehicle Damage — e.g. "None", "Minor", "Major" from "V{n} Veh Damage"
-    await this.page
-      .locator(locators.damageStatus)
+    await this.page.locator(locators.damageStatus)
       .selectOption({ label: vehicle.vehDamage });
 
-    // Salvage title flag — salvage = 1 → "Yes", 0 → "No"
+    // Salvage title flag — use dedicated data-test selectors; avoids unscoped
+    // getByText("Yes"/"No") which matched Named Owner radio buttons still in DOM.
     // (from "V{n} Salvage" column, coerced to number by buildRaterData)
     if (vehicle.salvage === 1) {
-      await this.page.getByText("Yes", { exact: true }).click();
+      await this.page.locator(locators.vehicleSalvageYes).click();
     } else {
-      await this.page.getByText("No", { exact: true }).click();
+      await this.page.locator(locators.vehicleSalvageNo).click();
     }
   }
 

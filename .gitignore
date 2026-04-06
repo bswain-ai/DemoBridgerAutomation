@@ -16,3 +16,7 @@ node_modules/
 # Rater output — generated .xlsm copies produced per test run.
 # Large binary files regenerated on every execution — no value in git history.
 /RaterOutput/
+
+# Diagnostic screenshots — produced by temporary inspect_*.spec.js scripts.
+# These are never needed in version history.
+*.png
