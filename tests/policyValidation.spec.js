@@ -72,15 +72,42 @@ test("Create Rater File and Calculate Premium", async () => {
 
     const uiData = xlsx.utils.sheet_to_json(uiSheet, { defval: "" });
 
+    // TC_NO ANCHOR FIX — Phase 1 Task 1 (policyValidation)
+    // The old lookup used uiData[index] — the array position of the current
+    // input row — to find the matching policy number in the UI output sheet.
+    // If any test case was skipped in createPolicy (e.g. missing VIN), that
+    // TC left no row in the output sheet, so every row below it shifted up
+    // by one position. uiData[index] then read the wrong row, attaching
+    // this rater run to the wrong policy number, wrong rater file name, and
+    // wrong entry in the premiumResults array fed into the comparison sheet.
+    //
+    // Fix: build a lookup Map from the UI output sheet keyed on TestCase No,
+    // then look up by the TC_NO read from the input row — the same value
+    // createPolicy.spec.js wrote into the output sheet. The match is now
+    // always exact regardless of how many rows were skipped or their order.
+    const uiByTcNo = new Map(
+      uiData.map((r) => [r["TestCase No"]?.toString().trim(), r])
+    );
+
+    // Read TC_NO from the input row. This must use the same column ("TC NO")
+    // and the same fallback logic as createPolicy.spec.js so the key written
+    // to the output sheet and the key used here are always identical.
+    const tcNo =
+      row["TC NO"]?.toString().trim() ||
+      `TC${String(index + 1).padStart(3, "0")}`;
+
+    // Look up this TC's UI output row by TC number — not by position.
     const policyNumber =
-      uiData[index]?.["Policy Number"] || `Policy_${index + 1}`;
+      uiByTcNo.get(tcNo)?.["Policy Number"] || `Policy_${index + 1}`;
 
     console.log("Processing Policy:", policyNumber);
 
     // =========================
     // Create Rater File
     // =========================
-    const testCaseId = `TC${String(index + 1).padStart(3, "0")}`;
+    // Use tcNo as the rater file prefix so the file name always reflects
+    // the true TC identity from the input Excel, not the loop position.
+    const testCaseId = tcNo;
 
     const newRaterFile = path.join(
       raterFolder,
@@ -143,7 +170,11 @@ test("Create Rater File and Calculate Premium", async () => {
     // STORE RESULT (CRITICAL FIX)
     // =========================
     premiumResults.push({
-      testCase: testCaseId,
+      // testCase must be the TC_NO read from the input Excel — this is the
+      // key that createPremiumComparison() uses to join rater results against
+      // UI output rows. If it doesn't match the value createPolicy wrote into
+      // the output sheet, every comparison row will show the wrong premium.
+      testCase: tcNo,
       policyNo: policyNumber,
       raterPremium: premium,
     });
