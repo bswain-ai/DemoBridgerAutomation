@@ -1,3 +1,5 @@
+const getIndex = (v) => Number(v.replace("V", "")) - 1;
+
 export const locators = {
   // ==================== Login Portal ======================
 
@@ -51,7 +53,7 @@ export const locators = {
   purchasedStatus: `[data-test="f_vehicle_is_new"]`,
   damageStatus: `[data-test="f_vehicle_damage"]`,
   vehicleSalvageYes: '[data-test="f_vehicle_salvaged_true"]',
-  vehicleSalvageNo:  '[data-test="f_vehicle_salvaged_false"]',
+  vehicleSalvageNo: '[data-test="f_vehicle_salvaged_false"]',
   saveButton: `[data-test="vehicle-drawer-submit"]`,
   addedVehicle: (vin) => `//span[text()='${vin}']`,
   nextButton: `[data-test="next-btn"]`,
@@ -62,8 +64,8 @@ export const locators = {
   updateDriver: `//span[normalize-space()='Update']`,
   addDriverBtn: `[data-test="add-driver-button"]`,
   driverFirstName: `[data-test="f_driver_first_name"]`,
-  driverLastName:  `[data-test="f_driver_last_name"]`,
-  driverRelation:  `[data-test="f_driver_relations_to_named_insured"]`,
+  driverLastName: `[data-test="f_driver_last_name"]`,
+  driverRelation: `[data-test="f_driver_relations_to_named_insured"]`,
   driverGender: `[data-test="f_driver_gender"]`,
   driverMaritalStatus: `[data-test="f_driver_marital_status"]`,
   driverDOB: `[data-test="f_driver_dob"]`,
@@ -100,24 +102,34 @@ export const locators = {
   motorclubToggle:
     '[data-test="coverage-item-switch-Motorclub"] input[type="checkbox"]',
 
-  compToggle:
-    '[data-test="coverage-item-switch-Other than Collision (Comprehensive Coverage)-0"]  input[type="checkbox"]',
+  compToggle: (v) =>
+    `[data-test="coverage-item-switch-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"] input[type="checkbox"]`,
 
-  collToggle: `[data-test="coverage-item-switch-Collision-0"] input[type="checkbox"]`,
+  collToggle: (v) =>
+    `[data-test="coverage-item-switch-Collision-${getIndex(v)}"] input[type="checkbox"]`,
 
-  rentalToggle:
-    '[data-test="coverage-item-switch-Rental Reimbursement-0"] input[type="checkbox"]',
+  rentalToggle: (v) =>
+    `[data-test="coverage-item-switch-Rental Reimbursement-${getIndex(v)}"] input[type="checkbox"]`,
 
-  roadsideToggle:
-    '[data-test="coverage-item-switch-Roadside Assistance-0"] input[type="checkbox"]',
+  roadsideToggle: (v) =>
+    `[data-test="coverage-item-switch-Roadside Assistance-${getIndex(v)}"] input[type="checkbox"]`,
 
-  rrLimit: '[data-test="coverage-item-limit-Rental Reimbursement-0"]',
-  rrDuration: '[data-test="coverage-item-deductible-Rental Reimbursement-0"]',
-  rsaLimit: '[data-test="coverage-item-limit-Roadside Assistance-0"]',
+  rrLimit: (v) =>
+    `[data-test="coverage-item-limit-Rental Reimbursement-${getIndex(v)}"]`,
+
+  rrDuration: (v) =>
+    `[data-test="coverage-item-deductible-Rental Reimbursement-${getIndex(v)}"]`,
+
+  rsaLimit: (v) =>
+    `[data-test="coverage-item-limit-Roadside Assistance-${getIndex(v)}"]`,
   rsaOption: (value) => `//li[contains(text(),'${value}')]`,
 
-  compDeductible: `[aria-labelledby*="Other than Collision"]`,
-  collDeductible: `[aria-labelledby="Collision-deductible-label Collision-deductible"]`,
+  compDeductible: (v) =>
+    `[data-test="coverage-item-deductible-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"]`,
+
+  collDeductible: (v) =>
+    `[data-test="coverage-item-deductible-Collision-${getIndex(v)}"]`,
+
   refreshPriceBtn: ` //button[normalize-space()='Refresh Price']`,
   compDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
   collDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
@@ -201,33 +213,54 @@ export const locators = {
   searchTextBox: `//input[@placeholder='Search']`,
   searchPolicy: (policyNumber) => `//span[text()='Policy - ${policyNumber}']`,
   policyList: `[data-test="policyList"]`,
-  underWritingBtn:`[data-test="sidebar-Underwriting Review-btn"]`,
+  underWritingBtn: `[data-test="sidebar-Underwriting Review-btn"]`,
   viewPriceTraceBtn: `//button/span[text()='View Price Trace']`,
   pricetraceCloseBtn: `//button[normalize-space()='Close']`,
   coverageSummaryData: `//td[text()='Coverages Total']`,
   priceTraceHeaders: `//table//thead//th`,
   getBIFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[2]`,
-  getBICalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[2]/span`,
+  getBICalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[2]/span`,
   getPDFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[3]`,
-  getPDCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[3]/span`,
+  getPDCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[3]/span`,
   getPIPFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[4]`,
-  getPIPCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[4]/span`,
-  getMedpayFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[5]`,
-  getMedpayCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[5]/span`,
-  getUmbiFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[6]`,
-  getUmbiCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[6]/span`,
-  getUimbiFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[7]`,
-  getUimbiCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[7]/span`,
-  getUmpdFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[8]`,
-  getUmpdCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[8]/span`,
-  getUimpdFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[9]`,
-  getUimpdCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[9]/span`,
-  getCompFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[10]`,
-  getCompCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[10]/span`,
-  getCollFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[11]`,
-  getCollCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[11]/span`,
-  getRRBFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[12]`,
-  getRRBCalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[12]/span`,
-  getRSAFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[13]`,
-  getRSACalculation: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[13]/span`,
+  getPIPCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[4]/span`,
+  getMedpayFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[5]`,
+  getMedpayCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[5]/span`,
+  getUmbiFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[6]`,
+  getUmbiCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[6]/span`,
+  getUimbiFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[7]`,
+  getUimbiCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[7]/span`,
+  getUmpdFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[8]`,
+  getUmpdCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[8]/span`,
+  getUimpdFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[9]`,
+  getUimpdCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[9]/span`,
+  getCompFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[10]`,
+  getCompCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[10]/span`,
+  getCollFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[11]`,
+  getCollCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[11]/span`,
+  getRRBFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[12]`,
+  getRRBCalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[12]/span`,
+  getRSAFactor: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[13]`,
+  getRSACalculation: (label) =>
+    `//tr[td[normalize-space(text())="${label}"]]/td[13]/span`,
 };

@@ -97,7 +97,7 @@ export class ConfirmationNavigator {
 
     console.log("Initiating Purchase...");
 
-    // 🔥 Handle navigation + backend transaction safely
+    // Handle navigation + backend transaction safely
     await Promise.all([
       this.page.waitForLoadState("domcontentloaded"),
       this.safeClick(purchaseBtn),
@@ -119,7 +119,7 @@ export class ConfirmationNavigator {
       timeout: 90000, // heavy transaction safe
     });
 
-    console.log("✅ Policy Purchase Completed Successfully");
+    console.log("Policy Purchase Completed Successfully");
   }
 
   // ==================================================
@@ -163,6 +163,6 @@ export class ConfirmationNavigator {
   // ==================================================
   async completeFullConfirmationFlow() {
     await this.completeESignAndPurchase();
-    console.log("🎉 Confirmation Flow Completed");
+    console.log("Confirmation Flow Completed");
   }
 }

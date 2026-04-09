@@ -6,9 +6,21 @@ export class CoverageNavigator {
     this.page = page;
   }
 
+  getVehicles(data) {
+    return [
+      ...new Set(
+        Object.keys(data)
+          .map((k) => k.match(/V\d+/))
+          .filter(Boolean)
+          .map((m) => m[0]),
+      ),
+    ];
+  }
+
   // ==========================================
   // Safe Toggle (Handles Missing Elements)
-  // ==========================================
+  // ==========================================/
+  /*
   async toggleIfNeeded(locator, shouldEnable) {
     const element = this.page.locator(locator);
 
@@ -40,14 +52,46 @@ export class CoverageNavigator {
       await this.page.waitForLoadState("networkidle");
     }
   }
+    */
+
+  async toggleIfNeeded(locator, shouldEnable) {
+    const element = this.page.locator(locator).first();
+
+    // Check existence
+    if (!(await element.isVisible().catch(() => false))) {
+      console.log(`Coverage not present/visible → skipping: ${locator}`);
+      return;
+    }
+
+    // Scroll into view
+    await element.scrollIntoViewIfNeeded();
+
+    // Ensure element is stable
+    await element.waitFor({ state: "visible" });
+
+    // Get current state
+    const isChecked = await element.isChecked().catch(() => false);
+
+    // Toggle only if needed
+    if (shouldEnable !== isChecked) {
+      await element.click({ force: true });
+
+      // Better than networkidle
+      await this.page.waitForTimeout(300);
+
+      console.log(`Toggled ${locator} → ${shouldEnable ? "ON" : "OFF"}`);
+    } else {
+      console.log(`No change needed for ${locator}`);
+    }
+  }
 
   // ==========================================
   // Coverage Map (Excel Driven)
   // ==========================================
   getCoverageMap() {
     return [
-      { key: "PIPSection", locator: locators.pipToggle },
-      { key: "MEDPAY Selection", locator: locators.medpayToggle },
+      { key: "PIP Section", locator: locators.pipToggle },
+      { key: "MedPay Selection", locator: locators.medpayToggle },
       { key: "UMBI Selection", locator: locators.umbiToggle },
       { key: "UMPD Selection", locator: locators.umpdToggle },
       { key: "Motorclub Selection", locator: locators.motorclubToggle },
@@ -66,6 +110,7 @@ export class CoverageNavigator {
       const rawValue = policyData[coverage.key];
       const value = rawValue && Number(rawValue) === 1;
 
+      await this.page.waitForTimeout(2000);
       await this.toggleIfNeeded(coverage.locator, value);
     }
   }
@@ -74,40 +119,48 @@ export class CoverageNavigator {
   // Apply Comp + Coll
   // ==========================================
   // ── PHASE 2 NOTE ──────────────────────────────────────────────────────────
-  // Column names below are V1-specific (first vehicle only).
+  // Column names below are V-specific (first vehicle only).
   // TC_Template stores per-vehicle physical damage selections as:
-  //   "V1 Comp Selection", "V1 Coll Selection",
-  //   "V1 Comp Deductible", "V1 Coll Deductible"
+  //   "Comp Selection", "Coll Selection",
+  //   "V Comp Deductible", "V Coll Deductible"
   //
   // For multi-vehicle support (Phase 2+) this method will need to loop over
   // all vehicles and apply comp/coll toggles and deductibles per vehicle.
   // ──────────────────────────────────────────────────────────────────────────
+
   async applyCompAndColl(policyData) {
-    // V1 Comp/Coll Selection — "V1 Comp Selection" / "V1 Coll Selection" in TC_Template
-    const compSelected = Number(policyData["V1 Comp Selection"]) === 1;
+    const vehicles = this.getVehicles(policyData);
 
-    const collSelected = Number(policyData["V1 Coll Selection"]) === 1;
+    for (const v of vehicles) {
+      console.log(`Processing ${v}`);
 
-    if (!compSelected && !collSelected) return;
+      const compSelected = Number(policyData[`${v} Comp Selection`]) === 1;
+      const collSelected = Number(policyData[`${v} Coll Selection`]) === 1;
 
-    await this.toggleIfNeeded(locators.compToggle, compSelected);
-    await this.toggleIfNeeded(locators.collToggle, collSelected);
+      if (!compSelected && !collSelected) continue;
 
-    // V1 deductible values — "V1 Comp Deductible" / "V1 Coll Deductible" in TC_Template
-    if (compSelected && policyData["V1 Comp Deductible"]) {
-      await this.selectDeductible(
-        locators.compDeductible,
-        locators.compDeductibleOption,
-        policyData["V1 Comp Deductible"],
-      );
-    }
+      // Toggle
+      await this.page.waitForTimeout(2000);
+      await this.toggleIfNeeded(locators.compToggle(v), compSelected);
+      await this.page.waitForTimeout(2000);
+      await this.toggleIfNeeded(locators.collToggle(v), collSelected);
 
-    if (collSelected && policyData["V1 Coll Deductible"]) {
-      await this.selectDeductible(
-        locators.collDeductible,
-        locators.collDeductibleOption,
-        policyData["V1 Coll Deductible"],
-      );
+      // Deductibles
+      if (compSelected && policyData[`${v} Comp Deductible`]) {
+        await this.selectDeductible(
+          locators.compDeductible(v),
+          locators.compDeductibleOption,
+          policyData[`${v} Comp Deductible`],
+        );
+      }
+
+      if (collSelected && policyData[`${v} Coll Deductible`]) {
+        await this.selectDeductible(
+          locators.collDeductible(v),
+          locators.collDeductibleOption,
+          policyData[`${v} Coll Deductible`],
+        );
+      }
     }
   }
 
@@ -129,56 +182,90 @@ export class CoverageNavigator {
   // ==========================================
   // Rental + Roadside Values
   // ==========================================
+
   async applyAddonValues(policyData) {
-    // ---------- Rental ----------
-    if (Number(policyData["RR Selection"]) === 1) {
-      // "V1 RR Limit" / "V1 RR Duration" match the TC_Template column names.
-      // Old flat names "RR Limit" / "RR Duration" returned undefined on TC_Template rows.
-      const rrLimit = policyData["V1 RR Limit"];
-      const rrDuration = policyData["V1 RR Duration"];
+    const vehicles = this.getVehicles(policyData);
 
-      // ===== RR LIMIT =====
-      if (rrLimit) {
-        const limitDropdown = this.page.locator(locators.rrLimit);
+    for (const v of vehicles) {
+      console.log(`Processing Addons for ${v}`);
 
-        if (await limitDropdown.count()) {
-          await this.selectMuiDropdown(limitDropdown, rrLimit);
-          console.log("RR Limit selected:", rrLimit);
+      // ================= RENTAL =================
+      const rentalSelected = Number(policyData[`${v} RR Selection`]) === 1;
+      const roadsideSelected = Number(policyData[`${v} RSA Selection`]) === 1;
+
+      if (!rentalSelected && !roadsideSelected) continue;
+
+      await this.page.waitForTimeout(2000);
+      await this.toggleIfNeeded(locators.rentalToggle(v), rentalSelected);
+      await this.page.waitForTimeout(2000);
+      await this.toggleIfNeeded(locators.roadsideToggle(v), roadsideSelected);
+
+      // ================= RENTAL =================
+      if (rentalSelected) {
+        const rrLimit = policyData[`${v} RR Limit`];
+        const rrDuration = policyData[`${v} RR Duration`];
+
+        // wait for dropdowns after toggle
+        await this.page.waitForTimeout(500);
+
+        // ===== RR LIMIT =====
+        if (rrLimit) {
+          const limitDropdown = this.page.locator(locators.rrLimit(v));
+
+          console.log("rrLimit locator:", locators.rrLimit(v));
+
+          await limitDropdown.waitFor({ state: "visible" });
+          await limitDropdown.click();
+
+          await this.page.waitForTimeout(300);
+
+          await this.page
+            .locator('li[role="option"]', {
+              hasText: String(rrLimit),
+            })
+            .click({ force: true });
+
+          console.log(`${v} RR Limit selected: ${rrLimit}`);
+        }
+
+        // ===== RR DURATION =====
+        if (rrDuration) {
+          const durationDropdown = this.page.locator(locators.rrDuration(v));
+
+          await durationDropdown.click({ timeout: 20000 });
+          await this.page.waitForTimeout(300);
+
+          await this.page
+            .locator('li[role="option"]', {
+              hasText: String(rrDuration),
+            })
+            .click({ force: true });
+
+          console.log(`${v} RR Duration selected: ${rrDuration}`);
         }
       }
 
-      // ===== RR DURATION =====
-      if (rrDuration) {
-        const durationDropdown = this.page.locator(locators.rrDuration);
+      // ================= ROADSIDE =================
+      if (roadsideSelected) {
+        const rsaValue = policyData[`${v} RSA Value`];
 
-        if (await durationDropdown.count()) {
-          await this.selectMuiDropdown(durationDropdown, rrDuration);
-          console.log("RR Duration selected:", rrDuration);
-        }
-      }
-    }
+        await this.page.waitForTimeout(500);
 
-    // ---------- Roadside ----------
-    if (Number(policyData["RSA Selection"]) === 1) {
-      // "V1 RSA Value" matches the TC_Template column name.
-      // Old flat name "RSA Val" returned undefined on TC_Template rows.
-      const rsaVal = policyData["V1 RSA Value"];
+        if (rsaValue) {
+          const rsaDropdown = this.page.locator(locators.rsaLimit(v));
 
-      if (rsaVal) {
-        const rsaDropdown = this.page.locator(locators.rsaLimit);
+          await rsaDropdown.waitFor({ state: "visible" });
+          await rsaDropdown.click({ timeout: 50000 });
 
-        if (await rsaDropdown.count()) {
-          // open dropdown
-          await rsaDropdown.click();
+          //await this.page.waitForTimeout(300);
 
-          // select option
-          const option = this.page.locator(locators.rsaOption(rsaVal));
+          await this.page
+            .locator('li[role="option"]', {
+              hasText: String(rsaValue),
+            })
+            .click({ force: true });
 
-          await option.waitFor({ state: "visible", timeout: 10000 });
-
-          await option.click();
-
-          console.log("RSA selected:", rsaVal);
+          console.log(`${v} RSA selected: ${rsaValue}`);
         }
       }
     }
@@ -265,8 +352,8 @@ export class CoverageNavigator {
     console.log("Applying coverages");
 
     await this.applySimpleCoverages(policyData);
-    await this.applyCompAndColl(policyData);
     await this.applyAddonValues(policyData);
+    await this.applyCompAndColl(policyData);
 
     await this.refreshPrice();
 
