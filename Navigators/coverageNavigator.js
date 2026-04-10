@@ -1,4 +1,5 @@
 import { locators } from "../Locators/selectors.js";
+import {wait, waitFor, waitForElement } from '../helpers/uiHelper';
 import { expect } from "@playwright/test";
 
 export class CoverageNavigator {
@@ -17,42 +18,6 @@ export class CoverageNavigator {
     ];
   }
 
-  // ==========================================
-  // Safe Toggle (Handles Missing Elements)
-  // ==========================================/
-  /*
-  async toggleIfNeeded(locator, shouldEnable) {
-    const element = this.page.locator(locator);
-
-    const count = await element.count();
-
-    if (count === 0) {
-      console.log(`Coverage not present → skipping: ${locator}`);
-      return;
-    }
-
-    await element.scrollIntoViewIfNeeded();
-
-    const isVisible = await element.isVisible().catch(() => false);
-
-    if (!isVisible) {
-      console.log(`Coverage hidden → skipping: ${locator}`);
-      return;
-    }
-
-    const isChecked = await element.isChecked().catch(() => false);
-
-    if (shouldEnable && !isChecked) {
-      await element.click();
-      await this.page.waitForLoadState("networkidle");
-    }
-
-    if (!shouldEnable && isChecked) {
-      await element.click();
-      await this.page.waitForLoadState("networkidle");
-    }
-  }
-    */
 
   async toggleIfNeeded(locator, shouldEnable) {
     const element = this.page.locator(locator).first();
@@ -110,7 +75,7 @@ export class CoverageNavigator {
       const rawValue = policyData[coverage.key];
       const value = rawValue && Number(rawValue) === 1;
 
-      await this.page.waitForTimeout(2000);
+      await wait(this.page)
       await this.toggleIfNeeded(coverage.locator, value);
     }
   }
@@ -140,9 +105,10 @@ export class CoverageNavigator {
       if (!compSelected && !collSelected) continue;
 
       // Toggle
-      await this.page.waitForTimeout(2000);
+      await waitForElement(this.page, locators.compToggle(v));
       await this.toggleIfNeeded(locators.compToggle(v), compSelected);
-      await this.page.waitForTimeout(2000);
+
+      await waitForElement(this.page, locators.collToggle(v));
       await this.toggleIfNeeded(locators.collToggle(v), collSelected);
 
       // Deductibles
@@ -195,12 +161,12 @@ export class CoverageNavigator {
 
       if (!rentalSelected && !roadsideSelected) continue;
 
-      await this.page.waitForTimeout(2000);
+      await wait(this.page)
       await this.toggleIfNeeded(locators.rentalToggle(v), rentalSelected);
-      await this.page.waitForTimeout(2000);
+      await wait(this.page)
       await this.toggleIfNeeded(locators.roadsideToggle(v), roadsideSelected);
 
-      // ================= RENTAL =================
+      // ================= RENTAL LIMIT & DURATION =================
       if (rentalSelected) {
         const rrLimit = policyData[`${v} RR Limit`];
         const rrDuration = policyData[`${v} RR Duration`];
@@ -257,7 +223,7 @@ export class CoverageNavigator {
           await rsaDropdown.waitFor({ state: "visible" });
           await rsaDropdown.click({ timeout: 50000 });
 
-          //await this.page.waitForTimeout(300);
+          await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -354,6 +320,7 @@ export class CoverageNavigator {
     await this.applySimpleCoverages(policyData);
     await this.applyAddonValues(policyData);
     await this.applyCompAndColl(policyData);
+    
 
     await this.refreshPrice();
 
@@ -402,7 +369,7 @@ export class CoverageNavigator {
           throw new Error("Proceed Quote failed after 3 attempts");
         }
 
-        await this.page.waitForTimeout(2000);
+        await waitFor(this.page)
       }
     }
   }

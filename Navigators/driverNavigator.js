@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { locators } from "../Locators/selectors.js";
 import { FakerData } from "../testData/fakerData.js";
+import {wait, waitFor, waitForElement } from '../helpers/uiHelper';
 
 export class DriverNavigator {
   constructor(page) {
@@ -165,6 +166,7 @@ export class DriverNavigator {
 
     const isChecked = await sr22Checkbox.isChecked();
     if (!isChecked) {
+      await sr22Checkbox.click({ force: true });
       await sr22Checkbox.click({ force: true });
       console.log("SR22 enabled");
     } else {
