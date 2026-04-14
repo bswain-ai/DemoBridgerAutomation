@@ -55,7 +55,7 @@ export class CoverageNavigator {
   // ==========================================
   getCoverageMap() {
     return [
-      { key: "PIP Section", locator: locators.pipToggle },
+      { key: "PIP Selection", locator: locators.pipToggle },
       { key: "MedPay Selection", locator: locators.medpayToggle },
       { key: "UMBI Selection", locator: locators.umbiToggle },
       { key: "UMPD Selection", locator: locators.umpdToggle },
