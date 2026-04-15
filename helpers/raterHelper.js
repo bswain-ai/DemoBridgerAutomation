@@ -128,7 +128,7 @@ export function buildRaterData(row) {
     uimbi:            toNum(g("UIMBI Selection")),
     umpd:             toNum(g("UMPD Selection")),
     uimpd:            toNum(g("UIMPD Selection")),
-    pip:              toNum(g("PIP Section")),
+    pip:              toNum(g("PIP Selection")),
     medpay:           toNum(g("MedPay Selection")),
   };
 

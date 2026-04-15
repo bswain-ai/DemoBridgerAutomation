@@ -167,7 +167,6 @@ export class DriverNavigator {
     const isChecked = await sr22Checkbox.isChecked();
     if (!isChecked) {
       await sr22Checkbox.click({ force: true });
-      await sr22Checkbox.click({ force: true });
       console.log("SR22 enabled");
     } else {
       console.log("SR22 already enabled");

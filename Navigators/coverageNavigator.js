@@ -73,7 +73,7 @@ export class CoverageNavigator {
 
     for (const coverage of coverageMap) {
       const rawValue = policyData[coverage.key];
-      const value = rawValue && Number(rawValue) === 1;
+      const value = Number(rawValue) === 1;
 
       await wait(this.page)
       await this.toggleIfNeeded(coverage.locator, value);
