@@ -1,76 +1,44 @@
 import { expect } from "@playwright/test";
 import { locators } from "../Locators/selectors.js";
 import { FakerData } from "../testData/fakerData.js";
-import {wait, waitFor, waitForElement } from '../helpers/uiHelper';
 
 export class DriverNavigator {
-  constructor(page) {
+  constructor(page, state) {
     this.page = page;
+    this.state = state;
   }
 
-  /**
-   * Fill in one driver's details on the quote.
-   *
-   * Button behavior (confirmed from UI screenshots):
-   *   driverIndex === 0  → click locators.updateDriver
-   *                        ("Update" — primary insured pre-populated on page load)
-   *   driverIndex > 0    → click locators.addDriverBtn
-   *                        ([data-test="add-driver-button"] — "Add driver" button)
-   *
-   * Next button behavior:
-   *   Only clicked twice when driverIndex === totalDrivers - 1 (last driver).
-   *   Intermediate drivers are saved via driverSubmitBtn but the page stays
-   *   on the drivers list until all drivers have been entered.
-   *
-   * @param {object} driver        - One entry from buildRaterData().drivers[]
-   * @param {number} driverIndex   - 0-based position of this driver in the loop
-   * @param {number} totalDrivers  - Total number of drivers on this policy
-   */
   async completeDriverSection(driver, driverIndex, totalDrivers) {
-
-    // ─── OPEN DRIVER DRAWER ─────────────────────────────────────────────────
+    // ─── OPEN DRIVER DRAWER ────────────────────────────────────────────────
     if (driverIndex === 0) {
-      // Primary insured — always pre-populated on the drivers page as "Update"
       await this.page.locator(locators.updateDriver).click({ timeout: 10000 });
     } else {
-      // Additional drivers — "Add driver" button adds a new driver slot
       await this.page.locator(locators.addDriverBtn).click({ timeout: 10000 });
     }
 
-    // ─── FIRST / LAST NAME (additional drivers only) ────────────────────────
-    // The primary insured (driverIndex === 0) is pre-populated from the named
-    // insured form — no fill needed. Additional drivers open a blank drawer.
-    // Use FakerData to generate a realistic name; the rater does not use it.
+    // ─── BASIC DETAILS ─────────────────────────────────────────────────────
     if (driverIndex > 0) {
-      await this.page.locator(locators.driverFirstName).fill(FakerData.getFirstName());
-      await this.page.locator(locators.driverLastName).fill(FakerData.getLastName());
+      await this.page
+        .locator(locators.driverFirstName)
+        .fill(FakerData.getFirstName());
+
+      await this.page
+        .locator(locators.driverLastName)
+        .fill(FakerData.getLastName());
     }
 
-    // ─── GENDER ─────────────────────────────────────────────────────────────
-    // From "D{n} Gender" column — e.g. "Male", "Female"
     await this.page
       .locator(locators.driverGender)
       .selectOption({ label: driver.gender });
 
-    // ─── MARITAL STATUS ─────────────────────────────────────────────────────
-    // From "D{n} Marital Status" column — e.g. "Single", "Married"
     await this.page
       .locator(locators.driverMaritalStatus)
       .selectOption({ label: driver.maritalStatus });
 
-    // ─── DATE OF BIRTH ──────────────────────────────────────────────────────
-    // driver.dob is MM-DD-YYYY (rater format from dateFormatUSA).
-    // The UI DOB field expects MM/DD/YYYY — convert dashes to slashes.
     await this.page
       .locator(locators.driverDOB)
       .fill(driver.dob.toString().replace(/-/g, "/"));
 
-    // ─── RELATION TO NAMED INSURED (additional drivers only) ────────────────
-    // The Add Driver drawer shows "Relation to Named Insured" between DOB and
-    // License State. Not present (or pre-set) for the primary insured drawer.
-    // Valid: Child, Domestic Partner, Employee, Non-Relative - Other,
-    // Parent, Relative - Other, Sibling, Significant Other, Spouse, Unknown.
-    // Defaults to Spouse if column is blank in template.
     if (driverIndex > 0) {
       const relation = driver.relationship || "Spouse";
       await this.page
@@ -78,9 +46,7 @@ export class DriverNavigator {
         .selectOption({ label: relation });
     }
 
-    // ─── LICENSE STATE (MUI Autocomplete) ───────────────────────────────────
-    // MUI Autocomplete requires typing into the field to open the dropdown,
-    // then clicking the matching list item. A plain selectOption() won't work.
+    // ─── LICENSE STATE (MUI AUTOCOMPLETE) ─────────────────────────────────
     const licenseStateField = this.page.locator(locators.driverLicenseState);
 
     await licenseStateField.waitFor({ state: "visible" });
@@ -89,25 +55,21 @@ export class DriverNavigator {
     await licenseStateField.type(driver.licenseState, { delay: 100 });
 
     const stateOption = this.page.locator(
-      `//li[contains(text(),'${driver.licenseState}')]`
+      `//li[contains(text(),'${driver.licenseState}')]`,
     );
+
     await stateOption.waitFor({ state: "visible", timeout: 10000 });
     await stateOption.click();
 
-    // ─── LICENSE NUMBER ─────────────────────────────────────────────────────
-    // From "D{n} License No" column (UI-only — not a rating factor in rater.ps1)
+    // ─── LICENSE DETAILS ───────────────────────────────────────────────────
     await this.page
       .locator(locators.licenseTxtBox)
       .fill(driver.licenseNo.toString());
 
-    // ─── LICENSE STATUS ─────────────────────────────────────────────────────
-    // From "D{n} License Status" column — e.g. "Valid", "Suspended"
     await this.page
       .locator(locators.driverLicenseStatus)
       .selectOption({ label: driver.licenseStatus });
 
-    // ─── LICENSE EXPERIENCE ─────────────────────────────────────────────────
-    // Years and months licensed — from "D{n} License Years/Months" columns
     await this.page
       .locator(locators.driverLicenseYears)
       .fill(driver.licenseYears.toString());
@@ -116,106 +78,132 @@ export class DriverNavigator {
       .locator(locators.driverLicenseMonths)
       .fill(driver.licenseMonths.toString());
 
-    // ─── CHECKBOXES ─────────────────────────────────────────────────────────
-    // Each handler reads a flag (0/1) from the driver object and only
-    // interacts with the checkbox when the discount/surcharge is applicable.
-    await this.handleSR22(driver);
-    await this.handleDefensiveDriver(driver);
-    await this.handleDrugDiscount(driver);
+    // ───  CALIFORNIA FIELDS ──────────────────────────────────────────────
+    if (this.state === "California") {
+      console.log("Handling California driver fields");
 
-    // ─── OCCUPATION ─────────────────────────────────────────────────────────
-    // Click the occupation dropdown then select the matching list item
+      // Driving Experience
+      await this.page
+        .locator(locators.driverExperience)
+        .fill(driver.drivingExp?.toString() || "1");
+      await this.handleAge55Plus(driver);
+      await this.handleGoodStudent(driver);
+      await this.handleYouthfulDriver(driver);
+    }
+
+    // ─── COMMON SR22 (BOTH STATES) ─────────────────────────────────────────
+    await this.handleSR22(driver);
+
+    // ─── TEXAS ONLY ────────────────────────────────────────────────────────
+    if (this.state === "Texas") {
+      await this.handleDefensiveDriver(driver);
+      await this.handleDrugDiscount(driver);
+    }
+
+    // ─── OCCUPATION ───────────────────────────────────────────────────────
     await this.page.locator(locators.driverOccupation).click();
     await this.page
       .locator(locators.selectOccupation(driver.occupation))
       .click();
 
-    // ─── SAVE DRIVER ────────────────────────────────────────────────────────
+    // ─── SAVE DRIVER ──────────────────────────────────────────────────────
     await this.page.locator(locators.driverSubmitBtn).click({ timeout: 10000 });
 
-    // Wait for driver drawer modal to fully close before proceeding.
-    // The MuiDrawer backdrop intercepts pointer events during close
-    // animation — clicking Next too early causes a 10s timeout on
-    // the next-btn locator.
-    await this.page.locator(locators.driverSubmitBtn)
-      .waitFor({ state: 'hidden', timeout: 10000 });
+    await this.page
+      .locator(locators.driverSubmitBtn)
+      .waitFor({ state: "hidden", timeout: 10000 });
 
-    // ─── ADVANCE PAGE (last driver only) ────────────────────────────────────
-    // Intermediate drivers: save and stay on the drivers page.
-    // Last driver: click Next twice — first advances past the drivers summary,
-    // second advances past the violations page to coverages.
+    // ─── NEXT BUTTON (LAST DRIVER ONLY) ───────────────────────────────────
     if (driverIndex === totalDrivers - 1) {
       await this.page.locator(locators.nextButton).click({ timeout: 10000 });
       await this.page.locator(locators.nextButton).click({ timeout: 10000 });
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // SR22
-  // sr22 = 1 means this driver requires an SR-22 financial responsibility
-  // filing. The checkbox is unchecked by default — only interact when sr22 = 1.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────
+  // SR22 (COMMON)
+  // ────────────────────────────────────────────────────────────────────────
   async handleSR22(driver) {
-    if (Number(driver.sr22) !== 1) {
-      console.log("SR22 not required");
-      return;
-    }
+    if (Number(driver.sr22) !== 1) return;
 
-    const sr22Checkbox = this.page.locator(locators.sr22CheckBox);
-    await expect(sr22Checkbox).toBeVisible({ timeout: 50000 });
+    const checkbox = this.page.locator(locators.sr22CheckBox);
+    await expect(checkbox).toBeVisible({ timeout: 50000 });
 
-    const isChecked = await sr22Checkbox.isChecked();
-    if (!isChecked) {
-      await sr22Checkbox.click({ force: true });
-      console.log("SR22 enabled");
-    } else {
-      console.log("SR22 already enabled");
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // DEFENSIVE DRIVER DISCOUNT
-  // defensiveDriver = 1 means this driver completed an approved defensive
-  // driving course and qualifies for the discount.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────
+  // Age 55+ Driver
+  // ────────────────────────────────────────────────────────────────────────
+
+  async handleAge55Plus(driver) {
+    if (Number(driver.age55OrOlder) !== 1) return;
+
+    const checkbox = this.page.locator(locators.age55Checkbox);
+    await expect(checkbox).toBeVisible({ timeout: 50000 });
+
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Good Student Discount
+  // ────────────────────────────────────────────────────────────────────────
+
+  async handleGoodStudent(driver) {
+    if (Number(driver.goodStudent) !== 1) return;
+
+    const checkbox = this.page.locator(locators.goodStudentCheckbox);
+    await expect(checkbox).toBeVisible({ timeout: 50000 });
+
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Good Student Discount
+  // ────────────────────────────────────────────────────────────────────────
+
+  async handleYouthfulDriver(driver) {
+    if (Number(driver.goodStudent) !== 1) return;
+
+    const checkbox = this.page.locator(locators.youthfulDriverCheckbox);
+    await expect(checkbox).toBeVisible({ timeout: 50000 });
+
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // TEXAS - DEFENSIVE DRIVER
+  // ────────────────────────────────────────────────────────────────────────
   async handleDefensiveDriver(driver) {
-    if (Number(driver.defensiveDriver) !== 1) {
-      console.log("Defensive Driver not selected");
-      return;
-    }
+    if (Number(driver.defensiveDriver) !== 1) return;
 
-    const defensiveCheckbox = this.page.locator(locators.defensiveDriverCheckBox);
-    await expect(defensiveCheckbox).toBeVisible({ timeout: 10000 });
+    const checkbox = this.page.locator(locators.defensiveDriverCheckBox);
+    await expect(checkbox).toBeVisible();
 
-    const isChecked = await defensiveCheckbox.isChecked();
-    if (!isChecked) {
-      await defensiveCheckbox.click({ force: true });
-      console.log("Defensive Driver enabled");
-    } else {
-      console.log("Defensive Driver already enabled");
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // DRUG / ALCOHOL AWARENESS DISCOUNT
-  // drugDiscount = 1 means this driver completed an approved drug/alcohol
-  // awareness program and qualifies for the discount.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────
+  // TEXAS - DRUG DISCOUNT
+  // ────────────────────────────────────────────────────────────────────────
   async handleDrugDiscount(driver) {
-    if (Number(driver.drugDiscount) !== 1) {
-      console.log("Drug Discount not selected");
-      return;
-    }
+    if (Number(driver.drugDiscount) !== 1) return;
 
-    const drugCheckbox = this.page.locator(locators.drugDiscountCheckBox);
-    await expect(drugCheckbox).toBeVisible({ timeout: 10000 });
+    const checkbox = this.page.locator(locators.drugDiscountCheckBox);
+    await expect(checkbox).toBeVisible();
 
-    const isChecked = await drugCheckbox.isChecked();
-    if (!isChecked) {
-      await drugCheckbox.click({ force: true });
-      console.log("Drug Discount enabled");
-    } else {
-      console.log("Drug Discount already enabled");
+    if (!(await checkbox.isChecked())) {
+      await checkbox.click({ force: true });
     }
   }
 }

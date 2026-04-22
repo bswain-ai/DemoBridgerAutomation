@@ -75,6 +75,9 @@ export const locators = {
   driverLicenseMonths: `//input[@id='driver_license_month']`,
   licenseTxtBox: `//input[@id='driver_license_number']`,
   sr22CheckBox: `[data-test="f_driver_sr22"]`,
+  age55Checkbox: '[data-test="f_driver_mature_driver_improvement_course"]',
+  goodStudentCheckbox: '[data-test="f_driver_good_student"]',
+  youthfulDriverCheckbox: '[data-test="f_driver_drive_training"]',
   defensiveDriverCheckBox: `[data-test="f_driver_defensive"]`,
   drugDiscountCheckBox: `[data-test="f_driver_alcohol_awareness"]`,
   driverOccupation: `[data-test="f_driver_occupation"]`,
@@ -82,7 +85,7 @@ export const locators = {
     `//ul[@id='driver_occupation-listbox']/li[contains(text(),'${occupation}')]`,
   driverSubmitBtn: `[data-test="driver-drawer-submit"]`,
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
-
+  driverExperience: `#driver_experience`,
   // ============================== Violation Details =============================
 
   // =========================================  Coverage Details  ===============================
@@ -92,6 +95,8 @@ export const locators = {
 
   medpayToggle:
     '[data-test="coverage-item-switch-Medical Payments (MEDPAY)"] input[type="checkbox"]',
+
+  medpayLimit: `[id="Medical Payments (MEDPAY)-limit"]`,
 
   umbiToggle:
     '[data-test="coverage-item-switch-Uninsured Motorist Bodily Injury (UMBI)"] input[type="checkbox"]',
@@ -129,6 +134,9 @@ export const locators = {
 
   collDeductible: (v) =>
     `[data-test="coverage-item-deductible-Collision-${getIndex(v)}"]`,
+
+  cdwToggle: `[data-test="coverage-item-switch-CDW"] input[type="checkbox"]`,
+  tripleDedToggle: `[data-test="coverage-item-switch-Triple Deductible"] input[type="checkbox"]`,
 
   refreshPriceBtn: ` //button[normalize-space()='Refresh Price']`,
   compDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,

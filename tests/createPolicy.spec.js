@@ -22,7 +22,7 @@ import { ConfirmationNavigator } from "../Navigators/confirmationNavigator.js";
 // ─────────────────────────────────────────────────────────────────────────────
 // FILE PATHS
 // ─────────────────────────────────────────────────────────────────────────────
-const filePath   = credentials.dataFile;
+const filePath = credentials.dataFile;
 const resultPath = credentials.resultFile;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,12 +40,12 @@ const resultPath = credentials.resultFile;
 // auto-detect logic that would treat row 1 as the header row.
 // ─────────────────────────────────────────────────────────────────────────────
 const wb_input = xlsx.readFile(filePath);
-const ws_tc    = wb_input.Sheets["TC_Template"];
+const ws_tc = wb_input.Sheets["TC_Template"];
 
 if (!ws_tc) {
   throw new Error(
     `Sheet "TC_Template" not found in ${filePath}. ` +
-      `Available sheets: ${wb_input.SheetNames.join(", ")}`
+      `Available sheets: ${wb_input.SheetNames.join(", ")}`,
   );
 }
 
@@ -68,7 +68,6 @@ console.log("Total Rows:", excelData.length);
 // TEST LOOP
 // ─────────────────────────────────────────────────────────────────────────────
 for (let index = 0; index < excelData.length; index++) {
-
   // raw row — passed as-is to navigators that read column names directly
   // (State, Program, "Effective Date", address fields, coverage fields, UW, etc.)
   const row = excelData[index];
@@ -86,10 +85,7 @@ for (let index = 0; index < excelData.length; index++) {
     `TC${String(index + 1).padStart(3, "0")}`;
 
   test(`Create Policy ${tcLabel}`, async ({ browser }) => {
-
-    // ─── VIN GUARD ──────────────────────────────────────────────────────────
-    // Skip this test if vehicle slot 1 has no VIN.
-    // This handles placeholder / template rows left intentionally blank.
+    // Skip if no VIN
     if (!vehicles[0]?.vin) {
       console.log("Skipping row due to missing VIN");
       test.skip();
@@ -101,31 +97,33 @@ for (let index = 0; index < excelData.length; index++) {
     let success = false;
 
     while (attempt < MAX_RETRIES && !success) {
-
       const context = await browser.newContext();
-      const page    = await context.newPage();
+      const page = await context.newPage();
 
       try {
-        console.log(`Running ${tcLabel} - Attempt ${attempt + 1}`);
+        console.log(`\n Running ${tcLabel} - Attempt ${attempt + 1}`);
+        console.log(` State: ${row["State"]}`);
 
         // ─── NAVIGATORS ─────────────────────────────────────────────────────
-        const nameInsured          = new NameInsuredNavigator(page);
-        const addressNavigator     = new AddressNavigator(page);
-        const vehicleNavigator     = new VehicleNavigator(page);
-        const driverNavigator      = new DriverNavigator(page);
-        const violationsNavigator  = new ViolationsNavigator(page);
-        const coverageNavigator    = new CoverageNavigator(page);
+        const nameInsured = new NameInsuredNavigator(page);
+        const addressNavigator = new AddressNavigator(page);
+        const vehicleNavigator = new VehicleNavigator(page);
+
+        //  IMPORTANT CHANGE (STATE PASSING)
+        const driverNavigator = new DriverNavigator(page, row["State"]);
+
+        const violationsNavigator = new ViolationsNavigator(page);
+        const coverageNavigator = new CoverageNavigator(page);
         const underwriterNavigator = new UnderwriterNavigator(page);
-        const paymentNavigator     = new PaymentNavigator(page);
+        const paymentNavigator = new PaymentNavigator(page);
         const confirmationNavigator = new ConfirmationNavigator(page);
 
-        // ─── RESULTS FILE ───────────────────────────────────────────────────
         const { workbook, sheet: uiPremiumSheet } = openWorkbook(
           resultPath,
-          "Output_PolicyUIPremium"
+          "Output_PolicyUIPremium",
         );
 
-        // ─── LOGIN ──────────────────────────────────────────────────────────
+        // LOGIN
         await login(page, "agent");
 
         const insuredData = FakerData.generateNamedInsured();
@@ -142,6 +140,7 @@ for (let index = 0; index < excelData.length; index++) {
         // The same [data-test="add-vehicle-button"] is used for every vehicle;
         // the first shows as "Update", subsequent as "+ Add vehicle".
         for (let v = 0; v < vehicles.length; v++) {
+          console.log(` Adding Vehicle ${v + 1}`);
           await vehicleNavigator.addVehicle(vehicles[v], v, vehicles.length);
         }
 
@@ -151,7 +150,12 @@ for (let index = 0; index < excelData.length; index++) {
         //   driverIndex 1+ → "Add driver" button (additional drivers)
         //   Next×2 is only clicked after the last driver.
         for (let d = 0; d < drivers.length; d++) {
-          await driverNavigator.completeDriverSection(drivers[d], d, drivers.length);
+          console.log(` Adding Driver ${d + 1}`);
+          await driverNavigator.completeDriverSection(
+            drivers[d],
+            d,
+            drivers.length,
+          );
         }
 
         await violationsNavigator.withoutViolation();
@@ -164,18 +168,27 @@ for (let index = 0; index < excelData.length; index++) {
         const uw = (col, def) => row[col]?.toString().trim() || def;
 
         await underwriterNavigator.completeEligibilityQuestions([
-          { id: "allHouseholdMembersListed",    answer: uw("UW_AllHouseholdMembersListed",    "Yes") },
-          { id: "excludedSpouse",               answer: uw("UW_ExcludedSpouse",               "No")  },
-          { id: "selfEmployedDriver",           answer: uw("UW_SelfEmployedDriver",           "No")  },
-          { id: "impairedDriver",               answer: uw("UW_ImpairedDriver",               "No")  },
-          { id: "convictedDriver",              answer: uw("UW_ConvictedDriver",              "No")  },
-          { id: "ridesharingDriver",            answer: uw("UW_RidesharingDriver",            "No")  },
-          { id: "vehicleNotRegisteredToDriver", answer: uw("UW_VehicleNotRegisteredToDriver", "No")  },
-          { id: "modifiedAuto",                 answer: uw("UW_ModifiedAuto",                 "No")  },
-          { id: "businessAuto",                 answer: uw("UW_BusinessAuto",                 "No")  },
+          {
+            id: "allHouseholdMembersListed",
+            answer: uw("UW_AllHouseholdMembersListed", "Yes"),
+          },
+          { id: "excludedSpouse", answer: uw("UW_ExcludedSpouse", "No") },
+          {
+            id: "selfEmployedDriver",
+            answer: uw("UW_SelfEmployedDriver", "No"),
+          },
+          { id: "impairedDriver", answer: uw("UW_ImpairedDriver", "No") },
+          { id: "convictedDriver", answer: uw("UW_ConvictedDriver", "No") },
+          { id: "ridesharingDriver", answer: uw("UW_RidesharingDriver", "No") },
+          {
+            id: "vehicleNotRegisteredToDriver",
+            answer: uw("UW_VehicleNotRegisteredToDriver", "No"),
+          },
+          { id: "modifiedAuto", answer: uw("UW_ModifiedAuto", "No") },
+          { id: "businessAuto", answer: uw("UW_BusinessAuto", "No") },
         ]);
 
-        // ─── PAYMENT ────────────────────────────────────────────────────────
+        // PAYMENT
         await paymentNavigator.completePaymentSigning(row);
         await confirmationNavigator.completeESignAndPurchase();
 
@@ -185,33 +198,38 @@ for (let index = 0; index < excelData.length; index++) {
           .waitFor({ state: "visible", timeout: 15000 });
 
         const policyNo =
-          (await page.locator(locators.policyNumber).textContent())?.trim() || "";
+          (await page.locator(locators.policyNumber).textContent())?.trim() ||
+          "";
 
         const policyHolder =
-          (await page.locator(locators.insuredName).textContent())?.trim() || "";
+          (await page.locator(locators.insuredName).textContent())?.trim() ||
+          "";
 
         const policyTerm =
           (await page.locator(locators.policyTerm).textContent())?.trim() || "";
 
         const paymentPlan =
-          (await page.locator(locators.paymentPlan).textContent())?.trim() || "";
+          (await page.locator(locators.paymentPlan).textContent())?.trim() ||
+          "";
 
         // ─── COVERAGE SUMMARY ───────────────────────────────────────────────
         await confirmationNavigator.goToCoverageSummary();
 
         const totalPremium =
-          (await page.locator(locators.coveragePremium).textContent())?.trim() || "";
+          (
+            await page.locator(locators.coveragePremium).textContent()
+          )?.trim() || "";
 
         // ─── INDIVIDUAL PREMIUMS ────────────────────────────────────────────
-        const BiPremium     = await getPremium(page, locators.BiPremium);
-        const PdPremium     = await getPremium(page, locators.PdPremium);
-        const PipPremium    = await getPremium(page, locators.PipPremium);
+        const BiPremium = await getPremium(page, locators.BiPremium);
+        const PdPremium = await getPremium(page, locators.PdPremium);
+        const PipPremium = await getPremium(page, locators.PipPremium);
         const MedpayPremium = await getPremium(page, locators.medpayPremium);
-        const UmbiPremium   = await getPremium(page, locators.umbiPremium);
-        const UmpdPremium   = await getPremium(page, locators.umpdPremium);
-        const UimpdPremium  = await getPremium(page, locators.uimpdPremium);
+        const UmbiPremium = await getPremium(page, locators.umbiPremium);
+        const UmpdPremium = await getPremium(page, locators.umpdPremium);
+        const UimpdPremium = await getPremium(page, locators.uimpdPremium);
         const RentalPremium = await getPremium(page, locators.rentalPremium);
-        const RoadPremium   = await getPremium(page, locators.roadPremium);
+        const RoadPremium = await getPremium(page, locators.roadPremium);
 
         // Comp and Coll are captured only when vehicle 1 has the coverage
         // selected. vehicles[0].compSelection / .collSelection come from the
@@ -228,10 +246,9 @@ for (let index = 0; index < excelData.length; index++) {
 
         // SR22 fee is captured if ANY driver on the policy has sr22 = 1.
         // drivers.some() scans all D1–D8 driver entries in one pass.
-        const SR22Fee =
-          drivers.some((d) => d.sr22 === 1)
-            ? await getPremium(page, locators.frFee)
-            : "";
+        const SR22Fee = drivers.some((d) => d.sr22 === 1)
+          ? await getPremium(page, locators.frFee)
+          : "";
 
         const fraudFee = await getPremium(page, locators.fraudFee);
         const policyFee = await getPremium(page, locators.policyFee);
@@ -245,8 +262,8 @@ for (let index = 0; index < excelData.length; index++) {
           `TC${String(index + 1).padStart(3, "0")}`;
 
         const uiPremiumData = {
-          "TestCase No":          tcNo,
-          nameInsured:            policyHolder,
+          "TestCase No": tcNo,
+          nameInsured: policyHolder,
           policyTerm,
           totalPremium,
           paymentPlan,
@@ -257,14 +274,14 @@ for (let index = 0; index < excelData.length; index++) {
           UmbiPremium,
           UmpdPremium,
           UimpdPremium,
-          OtherThanCollision:     CompPremium,
-          Collision:              CollPremium,
+          OtherThanCollision: CompPremium,
+          Collision: CollPremium,
           "Rental Reimbursement": RentalPremium,
-          "Roadside Assistance":  RoadPremium,
+          "Roadside Assistance": RoadPremium,
           SR22Fee,
-          PolicyFee:              policyFee,
-          FraudFee:               fraudFee,
-          "Policy Number":        policyNo,
+          PolicyFee: policyFee,
+          FraudFee: fraudFee,
+          "Policy Number": policyNo,
         };
 
         writeRow(uiPremiumSheet, uiPremiumData, tcNo);
@@ -273,15 +290,12 @@ for (let index = 0; index < excelData.length; index++) {
         success = true;
 
         console.log(` ${tcLabel} Passed on Attempt ${attempt + 1}`);
-
       } catch (error) {
-
         console.log(` ${tcLabel} Failed on Attempt ${attempt + 1}`);
 
         if (attempt === MAX_RETRIES - 1) {
           throw error;
         }
-
       } finally {
         await page.close();
         await context.close();

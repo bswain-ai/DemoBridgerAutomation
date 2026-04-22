@@ -113,23 +113,23 @@ export function buildRaterData(row) {
   // These columns have no V{n}/D{n} prefix — they describe the whole policy
   // and are written to the RateOrder sheet's row 4 block by rater.ps1.
   const policy = {
-    tcId:             g("TC_ID"),
-    effectiveDate:    dateFormatUSA(g("Effective Date")),
-    term:             toNum(g("Term Length")) || 6,   // default: 6-month term
-    zip:              toNum(g("Garage Zip")),
-    nonOwner:         toNum(g("Non-Owner")),
-    priorCoverage:    toNum(g("Prior Coverage")),
-    priorCovMonths:   toNum(g("Prior Cov Months")),
+    tcId: g("TC_ID"),
+    effectiveDate: dateFormatUSA(g("Effective Date")),
+    term: toNum(g("Term Length")) || 6, // default: 6-month term
+    zip: toNum(g("Garage Zip")),
+    nonOwner: toNum(g("Non-Owner")),
+    priorCoverage: toNum(g("Prior Coverage")),
+    priorCovMonths: toNum(g("Prior Cov Months")),
     rolloverDiscount: toNum(g("Rollover Discount")),
-    isRenew:          toNum(g("IsRenew")),
-    daysInForce:      toNum(g("Days In Force")),
+    isRenew: toNum(g("IsRenew")),
+    daysInForce: toNum(g("Days In Force")),
     // Liability coverages — policy-wide, apply to every vehicle on the policy
-    umbi:             toNum(g("UMBI Selection")),
-    uimbi:            toNum(g("UIMBI Selection")),
-    umpd:             toNum(g("UMPD Selection")),
-    uimpd:            toNum(g("UIMPD Selection")),
-    pip:              toNum(g("PIP Selection")),
-    medpay:           toNum(g("MedPay Selection")),
+    umbi: toNum(g("UMBI Selection")),
+    uimbi: toNum(g("UIMBI Selection")),
+    umpd: toNum(g("UMPD Selection")),
+    uimpd: toNum(g("UIMPD Selection")),
+    pip: toNum(g("PIP Selection")),
+    medpay: toNum(g("MedPay Selection")),
   };
 
   // ── VEHICLES (V1–V8) ───────────────────────────────────────────────────
@@ -143,27 +143,27 @@ export function buildRaterData(row) {
 
     vehicles.push({
       vin,
-      year:             toNum(g(`V${n} Year`)),
-      make:             g(`V${n} Make`),
-      model:            g(`V${n} Model`),
-      vehicleUse:       g(`V${n} Vehicle Use`),
+      year: toNum(g(`V${n} Year`)),
+      make: g(`V${n} Make`),
+      model: g(`V${n} Model`),
+      vehicleUse: g(`V${n} Vehicle Use`),
       // ISO comp/coll symbols — pre-populated from the rater's symbol lookup
       // tables after the first quote run. Used for premium calculation.
-      compSymbol:       toNum(g(`V${n} Comp Symbol`)),
-      collSymbol:       toNum(g(`V${n} Coll Symbol`)),
+      compSymbol: toNum(g(`V${n} Comp Symbol`)),
+      collSymbol: toNum(g(`V${n} Coll Symbol`)),
       // Physical damage coverage selections (0 = not selected / excluded)
-      compSelection:    toNum(g(`V${n} Comp Selection`)),
-      collSelection:    toNum(g(`V${n} Coll Selection`)),
-      compDed:          toNum(g(`V${n} Comp Deductible`)) || 250, // default $250
-      collDed:          toNum(g(`V${n} Coll Deductible`)) || 250, // default $250
+      compSelection: toNum(g(`V${n} Comp Selection`)),
+      collSelection: toNum(g(`V${n} Coll Selection`)),
+      compDed: toNum(g(`V${n} Comp Deductible`)) || 250, // default $250
+      collDed: toNum(g(`V${n} Coll Deductible`)) || 250, // default $250
       // Rental reimbursement — stored as two separate columns (limit + duration)
       // rater.ps1 combines them into the rater cell format (e.g. "30-30")
-      rrSelection:      toNum(g(`V${n} RR Selection`)),
-      rrLimit:          g(`V${n} RR Limit`),
-      rrDuration:       g(`V${n} RR Duration`),
+      rrSelection: toNum(g(`V${n} RR Selection`)),
+      rrLimit: g(`V${n} RR Limit`),
+      rrDuration: g(`V${n} RR Duration`),
       // Roadside assistance
-      rsaSelection:     toNum(g(`V${n} RSA Selection`)),
-      rsaVal:           toNum(g(`V${n} RSA Value`)),
+      rsaSelection: toNum(g(`V${n} RSA Selection`)),
+      rsaVal: toNum(g(`V${n} RSA Value`)),
       // Per-vehicle UW flag — triggers the Unacceptable Risk Surcharge in the rater
       unacceptableRisk: toNum(g(`V${n} Unacceptable Risk`)),
 
@@ -171,17 +171,17 @@ export function buildRaterData(row) {
       // These fields are needed by vehicleNavigator.js to fill the quote form
       // but are NOT written to the rater spreadsheet by rater.ps1.
       // They are excluded from the rater JSON payload intentionally.
-      msrpCostNew:    g(`V${n} MSRP/Cost New`),   // dollar value shown on vehicle card
+      msrpCostNew: g(`V${n} MSRP/Cost New`), // dollar value shown on vehicle card
       // dateFormatSlash() handles both Excel serial numbers (e.g. 46035) and
       // unpadded date strings (e.g. "1/13/2026"), producing zero-padded
       // MM/DD/YYYY — the format required by the UI purchase date field.
       // Using dateFormatUSA().replace() was insufficient because xlsx returns
       // the raw serial number (not a formatted string) when raw:false is absent,
       // and new Date(serial) misinterprets it as milliseconds → wrong date.
-      purchaseDate:   dateFormatSlash(g(`V${n} Purchase Date`)),
-      purchaseStatus: g(`V${n} Purchase Status`),  // "New" or "Used"
-      vehDamage:      g(`V${n} Veh Damage`),       // e.g. "None", "Minor", "Major"
-      salvage:        toNum(g(`V${n} Salvage`)),   // 1 = Yes (salvage title), 0 = No
+      purchaseDate: dateFormatSlash(g(`V${n} Purchase Date`)),
+      purchaseStatus: g(`V${n} Purchase Status`), // "New" or "Used"
+      vehDamage: g(`V${n} Veh Damage`), // e.g. "None", "Minor", "Major"
+      salvage: toNum(g(`V${n} Salvage`)), // 1 = Yes (salvage title), 0 = No
     });
   }
 
@@ -195,27 +195,32 @@ export function buildRaterData(row) {
     if (!dob) break;
 
     drivers.push({
-      gender:               g(`D${n} Gender`),
-      maritalStatus:        g(`D${n} Marital Status`),
-      dob:                  dateFormatUSA(dob),
+      gender: g(`D${n} Gender`),
+      maritalStatus: g(`D${n} Marital Status`),
+      dob: dateFormatUSA(dob),
       // UI-ONLY: relationship is not a rater input but is required by the
       // Add Driver drawer. Null for D1 (primary insured, no relationship
       // field shown). For D2–D8 reads from template; defaults to "Spouse".
-      relationship:         n === 1 ? null : (g(`D${n} Relationship to Named Insured`) || "Spouse"),
-      licenseState:         g(`D${n} License State`),
-      licenseStatus:        g(`D${n} License Status`),
+      relationship:
+        n === 1 ? null : g(`D${n} Relationship to Named Insured`) || "Spouse",
+      licenseState: g(`D${n} License State`),
+      licenseStatus: g(`D${n} License Status`),
       // "License Type" (Full / Restricted / Learner's Permit) has no dedicated
       // D{n} column in the multi-template. The rater derives this from
       // licenseStatus. Defaults to "" — rater.ps1 must handle empty string.
-      licenseType:          "",
-      licenseYears:         toNum(g(`D${n} License Years`)),
-      licenseMonths:        toNum(g(`D${n} License Months`)),
-      sr22:                 toNum(g(`D${n} SR22`)),
-      defensiveDriver:      toNum(g(`D${n} Defensive Driver`)),
-      drugDiscount:         toNum(g(`D${n} Drug Discount`)),
-      occupation:           g(`D${n} Occupation`),
-      majorViolations:      toNum(g(`D${n} Major Violations`)),
-      minorViolations:      toNum(g(`D${n} Minor Violations`)),
+      licenseType: "",
+      licenseYears: toNum(g(`D${n} License Years`)),
+      licenseMonths: toNum(g(`D${n} License Months`)),
+      sr22: toNum(g(`D${n} SR22`)),
+      drivingExp: toNum(g(`D${n} Driving Exp`)),
+      age55OrOlder: toNum(g(`D${n} 55Plus Driver`)),
+      goodStudent: toNum(g(`D${n} GoodStudent Discount`)),
+      youthfulDriver: toNum(g(`D${n} Youthful`)), // ✅ FIXED
+      defensiveDriver: toNum(g(`D${n} Defensive Driver`)),
+      drugDiscount: toNum(g(`D${n} Drug Discount`)),
+      occupation: g(`D${n} Occupation`),
+      majorViolations: toNum(g(`D${n} Major Violations`)),
+      minorViolations: toNum(g(`D${n} Minor Violations`)),
       chargeableViolations: toNum(g(`D${n} Chargeable Viol.`)),
       // "Learner's Permit" has no dedicated D{n} column in the multi-template.
       // Defaults to 0. Add "D{n} Learner's Permit" to the template if this
@@ -320,32 +325,32 @@ export function getRaterCoverageData(policyNo, type) {
   // Order change: old rater had Defensive(70)→Drug(71)→Rollover(72).
   // New rater has Rollover(108)→Defensive(109)→Drug(110).
   const rowMap = {
-    Base:                             { factor: 86, calc: 118 },
-    Region:                           { factor: 87, calc: 119 },
-    Profile:                          { factor: 88, calc: 120 },
-    Household:                        { factor: 89, calc: 121 },
-    "Policy class":                   { factor: 90, calc: 122 },
-    "Model year":                     { factor: 91, calc: 123 },
-    Symbol:                           { factor: 92, calc: 124 },
-    "Non-Owner / FR":                 { factor: 93, calc: 125 },
-    "Limits / Deductible":            { factor: 94, calc: 126 },
-    Term:                             { factor: 95, calc: 127 },
-    "Sum of Surcharges":              { factor: 96, calc: 128 },
-    "License Type Surcharge":         { factor: 97, calc: null },
-    "Business Use":                   { factor: 98, calc: null },
-    "Violations Surcharge":           { factor: 99, calc: null },
-    "Learner's Permit":               { factor: 100, calc: null },
-    "Unacceptable Risk Surcharge":    { factor: 101, calc: null },
-    "Vehicle Surcharge":              { factor: 102, calc: null },
-    "Sum of discounts":               { factor: 104, calc: 129 },
-    "Multi-Car Discount":             { factor: 105, calc: null },
-    "Prior Coverage Discount":        { factor: 106, calc: null },
-    "Renewal Discount":               { factor: 107, calc: null },
-    "Rollover Discount":              { factor: 108, calc: null },
-    "Defensive Driver Discount":      { factor: 109, calc: null },
-    "Drug/Alcohol Awareness Discount":{ factor: 110, calc: null },
-    "Vehicle Discount":               { factor: 111, calc: 129 },
-    "Anti-Theft Discount":            { factor: 112, calc: 130 },
+    Base: { factor: 86, calc: 118 },
+    Region: { factor: 87, calc: 119 },
+    Profile: { factor: 88, calc: 120 },
+    Household: { factor: 89, calc: 121 },
+    "Policy class": { factor: 90, calc: 122 },
+    "Model year": { factor: 91, calc: 123 },
+    Symbol: { factor: 92, calc: 124 },
+    "Non-Owner / FR": { factor: 93, calc: 125 },
+    "Limits / Deductible": { factor: 94, calc: 126 },
+    Term: { factor: 95, calc: 127 },
+    "Sum of Surcharges": { factor: 96, calc: 128 },
+    "License Type Surcharge": { factor: 97, calc: null },
+    "Business Use": { factor: 98, calc: null },
+    "Violations Surcharge": { factor: 99, calc: null },
+    "Learner's Permit": { factor: 100, calc: null },
+    "Unacceptable Risk Surcharge": { factor: 101, calc: null },
+    "Vehicle Surcharge": { factor: 102, calc: null },
+    "Sum of discounts": { factor: 104, calc: 129 },
+    "Multi-Car Discount": { factor: 105, calc: null },
+    "Prior Coverage Discount": { factor: 106, calc: null },
+    "Renewal Discount": { factor: 107, calc: null },
+    "Rollover Discount": { factor: 108, calc: null },
+    "Defensive Driver Discount": { factor: 109, calc: null },
+    "Drug/Alcohol Awareness Discount": { factor: 110, calc: null },
+    "Vehicle Discount": { factor: 111, calc: 129 },
+    "Anti-Theft Discount": { factor: 112, calc: 130 },
   };
 
   const rows = rowMap[type];
@@ -357,13 +362,12 @@ export function getRaterCoverageData(policyNo, type) {
   const get = (col, row) => Number(sheet[`${col}${row}`]?.v || 0);
   // calc: null means this factor is absorbed into a cumulative row.
   // Return null for calc fields rather than reading the wrong row.
-  const getCalc = (col) =>
-    rows.calc !== null ? get(col, rows.calc) : null;
+  const getCalc = (col) => (rows.calc !== null ? get(col, rows.calc) : null);
 
   // Columns: C = BI, D = PD, K = COMP, L = COLL
   return {
-    BI:   { factor: get("C", rows.factor), calc: getCalc("C") },
-    PD:   { factor: get("D", rows.factor), calc: getCalc("D") },
+    BI: { factor: get("C", rows.factor), calc: getCalc("C") },
+    PD: { factor: get("D", rows.factor), calc: getCalc("D") },
     COMP: { factor: get("K", rows.factor), calc: getCalc("K") },
     COLL: { factor: get("L", rows.factor), calc: getCalc("L") },
   };

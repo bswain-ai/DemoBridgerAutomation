@@ -1,5 +1,5 @@
 import { locators } from "../Locators/selectors.js";
-import {wait, waitFor, waitForElement } from '../helpers/uiHelper';
+import { wait, waitFor, waitForElement } from "../helpers/uiHelper";
 import { expect } from "@playwright/test";
 
 export class CoverageNavigator {
@@ -17,7 +17,6 @@ export class CoverageNavigator {
       ),
     ];
   }
-
 
   async toggleIfNeeded(locator, shouldEnable) {
     const element = this.page.locator(locator).first();
@@ -59,6 +58,8 @@ export class CoverageNavigator {
       { key: "MedPay Selection", locator: locators.medpayToggle },
       { key: "UMBI Selection", locator: locators.umbiToggle },
       { key: "UMPD Selection", locator: locators.umpdToggle },
+      { key: "CDW Selection", locator: locators.cdwToggle },
+      { key: "Triple Deductible Selection", locator: locators.tripleDedToggle },
       { key: "Motorclub Selection", locator: locators.motorclubToggle },
       { key: "RR Selection", locator: locators.rentalToggle },
       { key: "RSA Selection", locator: locators.roadsideToggle },
@@ -71,15 +72,56 @@ export class CoverageNavigator {
   async applySimpleCoverages(policyData) {
     const coverageMap = this.getCoverageMap();
 
+    // ✅ State from Excel
+    const STATE = policyData["State"]?.toUpperCase();
+    console.log("State from Excel:", STATE);
+
     for (const coverage of coverageMap) {
       const rawValue = policyData[coverage.key];
       const value = Number(rawValue) === 1;
 
-      await wait(this.page)
+      await wait(this.page);
       await this.toggleIfNeeded(coverage.locator, value);
+
+      // ==========================================
+      // ✅ MedPay Limit Logic (FIXED)
+      // ==========================================
+      if (coverage.key === "MedPay Selection" && value) {
+        if (STATE === "TEXAS") {
+          console.log("TX → Skipping MedPay Limit");
+          continue;
+        }
+
+        if (STATE === "CALIFORNIA") {
+          const medpayLimit = policyData["MedPay Limit"];
+
+          if (!medpayLimit) {
+            console.log("No MedPay Limit provided → skipping");
+            continue;
+          }
+
+          console.log("Raw MedPay Limit:", medpayLimit);
+          const optionValue = `CA_L_${medpayLimit}`;
+          await waitFor(this.page);
+          const dropdown = this.page.locator(
+            '[data-test^="coverage-item-limit-Medical Payments"] [role="combobox"]',
+          );
+          await wait(this.page);
+          await dropdown.click();
+          await this.page.waitForSelector('li[role="option"]', {
+            timeout: 10000,
+          });
+
+          const option = this.page.locator(`li[data-value="${optionValue}"]`);
+
+          await option.waitFor({ state: "visible", timeout: 10000 });
+          await option.click();
+
+          console.log(`MedPay Limit selected → ${optionValue}`);
+        }
+      }
     }
   }
-
   // ==========================================
   // Apply Comp + Coll
   // ==========================================
@@ -161,9 +203,9 @@ export class CoverageNavigator {
 
       if (!rentalSelected && !roadsideSelected) continue;
 
-      await wait(this.page)
+      await wait(this.page);
       await this.toggleIfNeeded(locators.rentalToggle(v), rentalSelected);
-      await wait(this.page)
+      await wait(this.page);
       await this.toggleIfNeeded(locators.roadsideToggle(v), roadsideSelected);
 
       // ================= RENTAL LIMIT & DURATION =================
@@ -320,7 +362,6 @@ export class CoverageNavigator {
     await this.applySimpleCoverages(policyData);
     await this.applyAddonValues(policyData);
     await this.applyCompAndColl(policyData);
-    
 
     await this.refreshPrice();
 
@@ -369,7 +410,7 @@ export class CoverageNavigator {
           throw new Error("Proceed Quote failed after 3 attempts");
         }
 
-        await waitFor(this.page)
+        await waitFor(this.page);
       }
     }
   }
