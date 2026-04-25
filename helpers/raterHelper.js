@@ -114,6 +114,7 @@ export function buildRaterData(row) {
   // and are written to the RateOrder sheet's row 4 block by rater.ps1.
   const policy = {
     tcId: g("TC_ID"),
+    state: g("State"),  // passed to rater.ps1 to select TX vs CA mapping branch
     effectiveDate: dateFormatUSA(g("Effective Date")),
     term: toNum(g("Term Length")) || 6, // default: 6-month term
     zip: toNum(g("Garage Zip")),

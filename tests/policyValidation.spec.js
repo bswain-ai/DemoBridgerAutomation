@@ -127,14 +127,17 @@ test("Create Rater File and Calculate Premium", async () => {
     // =========================
     // Use tcNo as the rater file prefix so the file name always reflects
     // the true TC identity from the input Excel, not the loop position.
-    // Keep .xlsm extension — source rater template is macro-enabled (.xlsm).
-    // Saving as .xlsx risks Excel stripping VBA macros that CalcPolicyTotalPremium
-    // depends on, which would cause the rater.ps1 macro invocation to fail.
+    // Derive the rater file extension from the source template so the copy
+    // always matches the actual file format. TX uses .xlsm (macro-enabled);
+    // CA uses .xlsx (no VBA macros). Hardcoding .xlsm caused Excel COM to
+    // reject CA copies with "file format or extension is not valid" because
+    // the binary content was .xlsx but the extension said .xlsm.
     const testCaseId = tcNo;
+    const raterExt = path.extname(credentials.raterFile); // ".xlsm" or ".xlsx"
 
     const newRaterFile = path.join(
       raterFolder,
-      `${testCaseId}_${policyNumber}.xlsm`,
+      `${testCaseId}_${policyNumber}${raterExt}`,
     );
 
     console.log("Creating Rater File:", newRaterFile);
