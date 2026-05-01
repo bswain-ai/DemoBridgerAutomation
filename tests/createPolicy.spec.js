@@ -168,29 +168,20 @@ for (let index = 0; index < excelData.length; index++) {
         const uw = (col, def) => row[col]?.toString().trim() || def;
 
         await underwriterNavigator.completeEligibilityQuestions([
-          {
-            id: "allHouseholdMembersListed",
-            answer: uw("UW_AllHouseholdMembersListed", "Yes"),
-          },
+          { id: "allHouseholdMembersListed", answer: uw("UW_AllHouseholdMembersListed", "Yes")},
           { id: "excludedSpouse", answer: uw("UW_ExcludedSpouse", "No") },
-          {
-            id: "selfEmployedDriver",
-            answer: uw("UW_SelfEmployedDriver", "No"),
-          },
+          { id: "selfEmployedDriver", answer: uw("UW_SelfEmployedDriver", "No") },
           { id: "impairedDriver", answer: uw("UW_ImpairedDriver", "No") },
           { id: "convictedDriver", answer: uw("UW_ConvictedDriver", "No") },
           { id: "ridesharingDriver", answer: uw("UW_RidesharingDriver", "No") },
-          {
-            id: "vehicleNotRegisteredToDriver",
-            answer: uw("UW_VehicleNotRegisteredToDriver", "No"),
-          },
+          { id: "vehicleNotRegisteredToDriver", answer: uw("UW_VehicleNotRegisteredToDriver", "No") },
           { id: "modifiedAuto", answer: uw("UW_ModifiedAuto", "No") },
           { id: "businessAuto", answer: uw("UW_BusinessAuto", "No") },
         ]);
 
         // PAYMENT
         await paymentNavigator.completePaymentSigning(row);
-        await confirmationNavigator.completeESignAndPurchase();
+        await confirmationNavigator.completeESign();
 
         // ─── CAPTURE POLICY DATA ────────────────────────────────────────────
         await page

@@ -47,53 +47,113 @@ export class ConfirmationNavigator {
   // ==================================================
   // Confirm & E-Sign Flow (Bulletproof)
   // ==================================================
-  async completeESignAndPurchase() {
+  async completeESign() {
     // ===== Wait for Confirmation Page =====
-    await expect(this.page.locator(locators.confirmPage)).toBeVisible({
-      timeout: 60000,
-    });
+    await expect(this.page.locator(locators.identityPreflightPage)).toBeVisible(
+      {
+        timeout: 60000,
+      },
+    );
 
     // ==============================
-    // Agent Signature
+    // Begin to Signin Process
     // ==============================
-    await this.safeClick(this.page.locator(locators.agentCheckBox));
+    await this.safeClick(this.page.locator(locators.handoffDeviceCheckbox));
+    await this.safeClick(this.page.locator(locators.beginSigningBtn));
+
+    // ==============================
+    // Identity-Preflight Sign
+    // ==============================
+    await this.safeClick(this.page.locator(locators.reviewedGaragingAddress));
+    await this.safeClick(this.page.locator(locators.reviewedCoverages));
+    await this.safeClick(this.page.locator(locators.confirmedESignature));
+    await this.safeClick(this.page.locator(locators.eSignatureCheckbox));
+
+    await this.safeClick(this.page.locator(locators.nxtButton));
+
+    // ==============================
+    // Electronic Delivery & TCPA Consent
+    // ==============================
+
+    await this.safeClick(
+      this.page.locator(locators.electronicDeliveryCheckbox),
+    );
+
+    const fullLegalNameText = await this.page
+      .locator(locators.fullLegalNamePlaceholder)
+      .getAttribute("placeholder");
+
+    await this.page
+      .locator(locators.fullLegalName(fullLegalNameText))
+      .fill(fullLegalNameText);
+
+    await this.safeClick(this.page.locator(locators.marketingConsentCheckbox));
+
+    await this.safeClick(this.page.locator(locators.nxtButton));
+
+    // ==============================
+    // Consolidated Disclosures
+    // ==============================
+
+    await this.safeClick(this.page.locator(locators.selectAllCheckbox));
+
+    await this.page
+      .locator(locators.fullLegalName(fullLegalNameText))
+      .fill(fullLegalNameText);
+
+    await this.page.locator(locators.caaSection).hover({ timeout: 30000 });
 
     await this.scrollModal();
 
-    await this.safeClick(this.page.locator(locators.agreeButton));
+    await this.safeClick(this.page.locator(locators.nxtButton));
 
-    const agentText = await this.page
-      .locator(locators.agentSignaturePlaceholder)
+    if (process.env.STATE === "TX") {
+      // ==============================
+      // Coverage Waivers
+      // ==============================
+      await expect(this.page.locator(locators.pipWaiverAgreement)).toBeVisible({
+        timeout: 60000,
+      });
+      await this.safeClick(this.page.locator(locators.pipWaiverAgreement));
+
+      await expect(
+        this.page.locator(locators.umuimWaiverAgreement),
+      ).toBeVisible({
+        timeout: 60000,
+      });
+      await this.safeClick(this.page.locator(locators.umuimWaiverAgreement));
+
+      const names = this.page.locator(
+        locators.fullLegalName(fullLegalNameText),
+      );
+
+      await names.nth(0).fill(fullLegalNameText);
+      await names.nth(1).fill(fullLegalNameText);
+
+      await this.safeClick(this.page.locator(locators.nxtButton));
+    }
+
+    // ==============================
+    // Agent eSignature
+    // ==============================
+    await this.safeClick(this.page.locator(locators.returnToProducer));
+    await this.safeClick(this.page.locator(locators.agentAgreementCheckbox));
+
+    const producerFullLegalNameText = await this.page
+      .locator(locators.producerFullLegalNamePlaceholder)
       .getAttribute("placeholder");
 
     await this.page
-      .locator(locators.agentSignature(agentText))
-      .fill(agentText);
-
-    // ==============================
-    // Applicant Signature
-    // ==============================
-    await this.safeClick(this.page.locator(locators.applicantCheckBox));
-
-    await this.page.locator(locators.AuthText).hover({ timeout: 30000 });
-
-    await this.safeClick(this.page.locator(locators.agreeButton));
-
-    const applicantText = await this.page
-      .locator(locators.applicantSignaturePlaceholder)
-      .getAttribute("placeholder");
-
-    await this.page
-      .locator(locators.applicantSignature)
-      .fill(applicantText);
+      .locator(locators.fullLegalName(producerFullLegalNameText))
+      .fill(producerFullLegalNameText);
 
     // ==============================
     // Purchase (Ultimate Pattern)
     // ==============================
-    const purchaseBtn = this.page.locator(locators.purchaseButton);
+    const purchaseBtn = this.page.locator(locators.PurchasePolicyBtn);
 
-    await expect(purchaseBtn).toBeVisible({ timeout: 30000 });
     await expect(purchaseBtn).toBeEnabled({ timeout: 30000 });
+    await expect(purchaseBtn).toBeVisible({ timeout: 30000 });
 
     console.log("Initiating Purchase...");
 
@@ -112,7 +172,7 @@ export class ConfirmationNavigator {
     // 3. Confirmation container
 
     const successLocator = this.page.locator(
-      "//h5[contains(text(),'successfully purchased')]"
+      "//h5[contains(text(),'successfully purchased')]",
     );
 
     await expect(successLocator).toBeVisible({
@@ -132,7 +192,7 @@ export class ConfirmationNavigator {
     }
 
     await expect(
-      this.page.locator(locators.disabledagreeButton)
+      this.page.locator(locators.disabledagreeButton),
     ).not.toBeVisible({ timeout: 20000 });
   }
 

@@ -48,18 +48,25 @@ function getValue(data, ...keys) {
  */
 function dateFormatUSA(dateValue) {
   if (!dateValue) return "";
-  let d;
+
+  // Excel serial number
   if (typeof dateValue === "number") {
-    // Excel serial → Unix timestamp (days × seconds/day × ms/second)
-    d = new Date((dateValue - 25569) * 86400 * 1000);
-  } else {
-    d = new Date(dateValue);
+    const d = new Date(Date.UTC(1899, 11, 30) + dateValue * 86400000);
+
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const yyyy = d.getUTCFullYear();
+
+    return `${mm}-${dd}-${yyyy}`;
   }
-  if (isNaN(d)) return dateValue;
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const yyyy = d.getUTCFullYear();
-  return `${mm}-${dd}-${yyyy}`;
+
+  // String like 01/15/1995
+  if (typeof dateValue === "string" && dateValue.includes("/")) {
+    const [mm, dd, yyyy] = dateValue.split("/");
+    return `${mm.padStart(2, "0")}-${dd.padStart(2, "0")}-${yyyy}`;
+  }
+
+  return String(dateValue).trim();
 }
 
 /**
@@ -114,7 +121,7 @@ export function buildRaterData(row) {
   // and are written to the RateOrder sheet's row 4 block by rater.ps1.
   const policy = {
     tcId: g("TC_ID"),
-    state: g("State"),  // passed to rater.ps1 to select TX vs CA mapping branch
+    state: g("State"), // passed to rater.ps1 to select TX vs CA mapping branch
     effectiveDate: dateFormatUSA(g("Effective Date")),
     term: toNum(g("Term Length")) || 6, // default: 6-month term
     zip: toNum(g("Garage Zip")),
@@ -131,6 +138,13 @@ export function buildRaterData(row) {
     uimpd: toNum(g("UIMPD Selection")),
     pip: toNum(g("PIP Selection")),
     medpay: toNum(g("MedPay Selection")),
+    medpayLimit: toNum(g("MedPay Limit")),
+    cdw: toNum(g("CDW Selection")),
+    tripleDeductible: toNum(g("Triple Deductible Selection")),
+    motorclub: toNum(g("Motorclub Selection")),
+    deductibleDiscount: toNum(g("Deductible Discount")),
+    bipdSymbol: toNum(g("BIPD Symbol")),
+    mpSymbol: toNum(g("MP Symbol")),
   };
 
   // ── VEHICLES (V1–V8) ───────────────────────────────────────────────────
@@ -150,13 +164,14 @@ export function buildRaterData(row) {
       vehicleUse: g(`V${n} Vehicle Use`),
       // ISO comp/coll symbols — pre-populated from the rater's symbol lookup
       // tables after the first quote run. Used for premium calculation.
-      compSymbol: toNum(g(`V${n} Comp Symbol`)),
-      collSymbol: toNum(g(`V${n} Coll Symbol`)),
+      compSymbol: String(g(`V${n} Comp Symbol`)).trim(),
+      collSymbol: String(g(`V${n} Coll Symbol`)).trim(),
       // Physical damage coverage selections (0 = not selected / excluded)
       compSelection: toNum(g(`V${n} Comp Selection`)),
       collSelection: toNum(g(`V${n} Coll Selection`)),
       compDed: toNum(g(`V${n} Comp Deductible`)) || 250, // default $250
       collDed: toNum(g(`V${n} Coll Deductible`)) || 250, // default $250
+      cdwDed: toNum(g(`V${n} CDW Deductible`)),
       // Rental reimbursement — stored as two separate columns (limit + duration)
       // rater.ps1 combines them into the rater cell format (e.g. "30-30")
       rrSelection: toNum(g(`V${n} RR Selection`)),
@@ -183,6 +198,8 @@ export function buildRaterData(row) {
       purchaseStatus: g(`V${n} Purchase Status`), // "New" or "Used"
       vehDamage: g(`V${n} Veh Damage`), // e.g. "None", "Minor", "Major"
       salvage: toNum(g(`V${n} Salvage`)), // 1 = Yes (salvage title), 0 = No
+      // California specific
+      mileage: toNum(g(`V${n} Mileage`)),
     });
   }
 
@@ -232,6 +249,30 @@ export function buildRaterData(row) {
       // licenseNo is needed by driverNavigator.js to fill the license number
       // field on the UI but is NOT passed to rater.ps1 (not a rating factor).
       licenseNo: g(`D${n} License No`),
+
+      // California specific
+      age55OrOlder: toNum(g(`D${n} 55Plus Driver`)),
+      youthfulDriver: toNum(g(`D${n} Youthful`)),
+      goodStudent: toNum(g(`D${n} GoodStudent Discount`)),
+      majorViolations: toNum(
+        g(`D${n} Number of Major Violation (in last 36 months)`),
+      ),
+
+      minorViolations: toNum(
+        g(`D${n} Number of Minor Violation (in last 36 months)`),
+      ),
+
+      chargeableAcc36: toNum(
+        g(`D${n} Number of Chargeable Accident (in last 36 months)`),
+      ),
+
+      chargeableAcc60: toNum(
+        g(`D${n} Number of Chargeable Accident (in less than 60 months)`),
+      ),
+
+      convictions60: toNum(
+        g(`D${n} Number of Convictions (in less than 60 months)`),
+      ),
     });
   }
 
@@ -254,19 +295,31 @@ export function buildRaterData(row) {
  */
 export function getRaterPremium(raterFile) {
   const wb = xlsx.readFile(raterFile);
-  const sheet = wb.Sheets["RateOrder"];
 
-  if (!sheet) {
-    console.log("RateOrder sheet not found");
+  let sheet;
+  let cellRef;
+
+  // Texas
+  if (wb.Sheets["RateOrder"]) {
+    sheet = wb.Sheets["RateOrder"];
+    cellRef = "M160";
+  }
+
+  // California
+  else if (wb.Sheets["OwnerRater"]) {
+    sheet = wb.Sheets["OwnerRater"];
+    cellRef = "I92";
+  }
+
+  // Sheet not found
+  else {
+    console.log("Premium sheet not found");
     return 0;
   }
 
-  // M160 = policy total premium written by CalcPolicyTotalPremium VBA macro
-  // (replaces old single-vehicle cell C98)
-  const cell = sheet["M160"];
-  const premium = Number(cell?.v || 0);
+  const premium = Number(sheet[cellRef]?.v || 0);
 
-  console.log("Captured Premium:", premium);
+  console.log(`Captured Premium (${cellRef}):`, premium);
   return premium;
 }
 

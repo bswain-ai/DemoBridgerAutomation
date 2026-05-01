@@ -30,7 +30,7 @@ export async function waitForElement(page, locator) {
   });
 }
 
-export async function wait(page, ms = 500) {
+export async function wait(page, ms = 600) {
   await page.waitForTimeout(ms);
 }
 

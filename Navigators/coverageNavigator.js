@@ -80,7 +80,7 @@ export class CoverageNavigator {
       const rawValue = policyData[coverage.key];
       const value = Number(rawValue) === 1;
 
-      await wait(this.page);
+      await waitFor(this.page);
       await this.toggleIfNeeded(coverage.locator, value);
 
       // ==========================================
@@ -102,7 +102,7 @@ export class CoverageNavigator {
 
           console.log("Raw MedPay Limit:", medpayLimit);
           const optionValue = `CA_L_${medpayLimit}`;
-          await waitFor(this.page);
+          await wait(this.page);
           const dropdown = this.page.locator(
             '[data-test^="coverage-item-limit-Medical Payments"] [role="combobox"]',
           );
