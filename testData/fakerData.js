@@ -18,8 +18,6 @@ export class FakerData {
 
   // =====================================================
   // SAFE / INVALID PHONE NUMBER
-  // Prevents real customer contact
-  // Example: 555-010-1234
   // =====================================================
   static getPhone() {
     const last4 = faker.number.int({
