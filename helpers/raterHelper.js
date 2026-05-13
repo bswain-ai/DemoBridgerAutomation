@@ -1,6 +1,7 @@
 import xlsx from "xlsx";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { credentials } from "../config/credentials.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -425,4 +426,263 @@ export function getRaterCoverageData(policyNo, type) {
     COMP: { factor: get("K", rows.factor), calc: getCalc("K") },
     COLL: { factor: get("L", rows.factor), calc: getCalc("L") },
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DYNAMIC DRIVER / VEHICLE MAPPINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function getDynamicDriverVehicleMappings(raterFile) {
+  const wb = xlsx.readFile(raterFile);
+
+  const sheet = wb.Sheets["RateOrder"];
+
+  if (!sheet) {
+    console.log("RateOrder sheet not found");
+    return [];
+  }
+
+  const mappings = [];
+
+  // Mapping rows
+  for (let row = 152; row <= 159; row++) {
+    const vehicle = sheet[`G${row}`]?.v;
+    const driver = sheet[`H${row}`]?.v;
+
+    console.log(`Row ${row} => Vehicle: ${vehicle}, Driver: ${driver}`);
+
+    // Skip empty rows
+    if (
+      vehicle === undefined ||
+      driver === undefined ||
+      vehicle === "" ||
+      driver === "" ||
+      vehicle === "—" ||
+      driver === "—"
+    ) {
+      continue;
+    }
+
+    mappings.push({
+      vehicle: String(vehicle).trim(),
+      driver: String(driver).trim(),
+    });
+  }
+
+  console.log("Dynamic Mappings:", mappings);
+
+  return mappings;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APPLY RATE MAPPING
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function applyRateMapping(raterFile, vehicle, driver) {
+  try {
+    console.log(`Applying Mapping -> Vehicle: ${vehicle}, Driver: ${driver}`);
+
+    const scriptPath = path.resolve("rater.ps1");
+
+    // ==========================================
+    // EXECUTE POWERSHELL
+    // ==========================================
+
+    execSync(
+      `powershell -ExecutionPolicy Bypass -File "${scriptPath}" -file "${raterFile}" -vehicle "${vehicle}" -driver "${driver}"`,
+      {
+        stdio: "inherit",
+      },
+    );
+
+    // ==========================================
+    // IMPORTANT
+    // WAIT FOR EXCEL SAVE + RECALCULATION
+    // ==========================================
+
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 12000);
+
+    // ==========================================
+    // CLEAR XLSX CACHE
+    // ==========================================
+
+    //delete require.cache[require.resolve("xlsx")];
+
+    // ==========================================
+    // RE-OPEN WORKBOOK
+    // ==========================================
+
+    const wb = xlsx.readFile(raterFile, {
+      cellFormula: false,
+      cellNF: false,
+      cellText: false,
+      raw: true,
+    });
+
+    console.log("Workbook recalculated successfully");
+
+    // ==========================================
+    // DEBUG CURRENT VALUES
+    // ==========================================
+
+    const rateSheet = wb.Sheets["RateOrder"];
+
+    console.log(
+      "Current B29:",
+      rateSheet["B29"]?.v,
+      "Current E29:",
+      rateSheet["E29"]?.v,
+    );
+
+    console.log("Current BI Base:", rateSheet["C86"]?.v);
+    console.log("Current PD Base:", rateSheet["D86"]?.v);
+
+    return wb;
+  } catch (error) {
+    console.log("Error applying rate mapping:", error.message);
+  }
+}
+
+// =====================================================
+// GET CURRENT RATER DATA
+// =====================================================
+
+export function getCurrentMappedRaterData(raterFile, type) {
+  try {
+    // ============================================
+    // ALWAYS READ FRESH FILE
+    // ============================================
+
+    const wb = xlsx.readFile(raterFile, {
+      raw: true,
+      cellFormula: false,
+      cellNF: false,
+      cellText: false,
+    });
+
+    const sheet = wb.Sheets["RateOrder"];
+
+    if (!sheet) {
+      console.log("RateOrder sheet missing");
+      return null;
+    }
+
+    // ============================================
+    // DEBUG CURRENT SELECTION
+    // ============================================
+
+    console.log(
+      "Current Vehicle:",
+      sheet["B29"]?.v,
+      "Current Driver:",
+      sheet["E29"]?.v,
+    );
+
+    // ============================================
+    // ROW MAP
+    // ============================================
+
+    const rowMap = {
+      Base: 86,
+      Region: 87,
+      Profile: 88,
+      Household: 89,
+      "Policy class": 90,
+      "Model year": 91,
+      "ISO Factor": 92,
+      "Non-Owner / FR": 93,
+      "Limits / Deductible": 94,
+      Term: 95,
+      "Sum of Surcharges": 96,
+      "License Type Surcharge": 97,
+      "Business Use": 98,
+      "Violations Surcharge": 99,
+      "Learners Permit": 100,
+      "Unacceptable Risk Surcharge": 101,
+      "Vehicle Surcharge": 102,
+      "SUM OF DISCOUNTS-MAX CAP": 103,
+      "Sum of discounts": 104,
+      "Multi-Car Discount": 105,
+      "Prior Coverage Discount": 106,
+      "Renewal Discount": 107,
+      "Rollover Discount": 108,
+      "Defensive Driving Discount": 109,
+      "Drug/Alcohol Awareness Discount": 110,
+      "Vehicle Discount": 111,
+      "Anti-Theft Discount": 112,
+    };
+
+    const row = rowMap[type];
+
+    if (!row) {
+      console.log(`No row mapping for ${type}`);
+      return null;
+    }
+
+    // ============================================
+    // SAFE VALUE
+    // ============================================
+
+    const getVal = (cell) => {
+      const value = sheet[cell]?.v;
+
+      if (value === undefined || value === null || value === "") {
+        return 0;
+      }
+
+      return Number(value);
+    };
+
+    const result = {
+      BI: {
+        factor: getVal(`C${row}`),
+      },
+
+      PD: {
+        factor: getVal(`D${row}`),
+      },
+
+      COMP: {
+        factor: getVal(`K${row}`),
+      },
+
+      COLL: {
+        factor: getVal(`L${row}`),
+      },
+    };
+
+    console.log(`Fresh Rater Data (${type}) =>`, result);
+
+    return result;
+  } catch (error) {
+    console.log("Error reading fresh rater data:", error.message);
+
+    return null;
+  }
+}
+
+// =====================================================
+// CREATE TEMP RATER FILE : Additional 
+// =====================================================
+
+export function createTempRaterFile(
+  originalFile,
+  index,
+) {
+  const dir = path.dirname(originalFile);
+
+  const ext = path.extname(originalFile);
+
+  const base = path.basename(originalFile, ext);
+
+  const tempFile = path.join(
+    dir,
+    `${base}_${index}${ext}`,
+  );
+
+  fs.copyFileSync(originalFile, tempFile);
+
+  console.log(`Temp File Created => ${tempFile}`);
+
+  return tempFile;
 }

@@ -162,21 +162,8 @@ export const locators = {
   //============================== Payment and Signing Details ==================================
   paymentSigningDetails: `//h5[normalize-space()='Payment and Signing Details']`,
   checkNumberTextBox: `//input[@id='pol_payment_check_number']`,
-  //agentCheckBox: `//div[h5[contains(text(), "Agent's Signature")]]//span[contains(text(),'the')]`,
-  //applicantCheckBox: `//div[h5[contains(text(), "Applicant's Signature")]]//span[contains(text(),'the')]`,
-  //agentSignature: (placeholder) => `//input[@placeholder='${placeholder}']`,
-  //applicantSignature: `//div[h5[contains(text(), concat('Applicant', "'", 's Signature'))]]//div[div/span[text()='Full Legal Name*']]//input`,
-  //termAndConditions: `//h5[normalize-space()='Terms and Conditions']`,
-  //disabledagreeButton: `//button[@data-testid='agree-button'][@disabled]`,
-  //agreeButton: `//button[text()='Agree']`,
+  producerOnlyChkBox: `//div[h5[text()='Producer Only']]//input`,
   officeEsign: `//div[text()='In Office eSign']`,
-  //agentSignaturePlaceholder: `//div[h5[contains(text(), "Agent's Signature")]]//input[@placeholder]`,
-  //applicantSignaturePlaceholder: `//div[h5[contains(text(), "Applicant's Signature")]]//input[@placeholder]`,
-  //modal: `//div[@class='MuiBox-root mui-wvmse7']`,
-  //AuthText: `//h6[text()='Authentication']`,
-  //purchaseButton: `//button[text()='Proceed with Purchase']`,
-
-  //Newly Added locators
   identityPreflightPage: `//h4[contains(text(),'Identity')]`,
   handoffDeviceCheckbox: `//span[contains(text(),'I confirm I')]/preceding-sibling::span/input[@type='checkbox']`,
   beginSigningBtn: `//button[text()='Begin Signing']`,
@@ -247,49 +234,49 @@ export const locators = {
   pricetraceCloseBtn: `//button[normalize-space()='Close']`,
   coverageSummaryData: `//td[text()='Coverages Total']`,
   priceTraceHeaders: `//table//thead//th`,
-  getBIFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[2]`,
-  getBICalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[2]/span`,
-  getPDFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[3]`,
-  getPDCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[3]/span`,
-  getPIPFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[4]`,
-  getPIPCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[4]/span`,
-  getMedpayFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[5]`,
-  getMedpayCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[5]/span`,
-  getUmbiFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[6]`,
-  getUmbiCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[6]/span`,
-  getUimbiFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[7]`,
-  getUimbiCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[7]/span`,
-  getUmpdFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[8]`,
-  getUmpdCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[8]/span`,
-  getUimpdFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[9]`,
-  getUimpdCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[9]/span`,
-  getCompFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[10]`,
-  getCompCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[10]/span`,
-  getCollFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[11]`,
-  getCollCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[11]/span`,
-  getRRBFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[12]`,
-  getRRBCalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[12]/span`,
-  getRSAFactor: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[13]`,
-  getRSACalculation: (label) =>
-    `//tr[td[normalize-space(text())="${label}"]]/td[13]/span`,
+  //getBIFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[2]`,
+  // getBICalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[2]/span`,
+  // getPDFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[3]`,
+  // getPDCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[3]/span`,
+  // getPIPFactor: (label) => `//tr[td[normalize-space(text())="${label}"]]/td[4]`,
+  // getPIPCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[4]/span`,
+  // getMedpayFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[5]`,
+  // getMedpayCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[5]/span`,
+  // getUmbiFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[6]`,
+  // getUmbiCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[6]/span`,
+  // getUimbiFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[7]`,
+  // getUimbiCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[7]/span`,
+  // getUmpdFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[8]`,
+  // getUmpdCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[8]/span`,
+  // getUimpdFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[9]`,
+  // getUimpdCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[9]/span`,
+  // getCompFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[10]`,
+  // getCompCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[10]/span`,
+  // getCollFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[11]`,
+  // getCollCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[11]/span`,
+  // getRRBFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[12]`,
+  // getRRBCalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[12]/span`,
+  // getRSAFactor: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[13]`,
+  // getRSACalculation: (label) =>
+  //   `//tr[td[normalize-space(text())="${label}"]]/td[13]/span`,
 };

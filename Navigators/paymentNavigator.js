@@ -12,9 +12,7 @@ export class PaymentNavigator {
   // Validate Eligibility (with retry)
   // ====================================
   async handleValidateEligibility() {
-    const validateBtn = this.page.locator(
-      locators.validateEligibilityBtn
-    );
+    const validateBtn = this.page.locator(locators.validateEligibilityBtn);
 
     await expect(validateBtn).toBeVisible({ timeout: 50000 });
     await expect(validateBtn).toBeEnabled({ timeout: 50000 });
@@ -52,16 +50,16 @@ export class PaymentNavigator {
   async completePaymentSigning(policyData) {
     console.log("Completing Payment Signing...");
 
-    await this.page
-      .locator(locators.officeEsign)
-      .click({ timeout: 50000 });
+    await this.page.locator(locators.officeEsign).click({ timeout: 50000 });
 
     await this.page
       .locator(locators.checkNumberTextBox)
       .fill(policyData.ChkNumber.toString());
 
     await this.page
-      .locator(locators.nextButton)
+      .locator(locators.producerOnlyChkBox)
       .click({ timeout: 50000 });
+
+    await this.page.locator(locators.nextButton).click({ timeout: 50000 });
   }
 }

@@ -181,7 +181,7 @@ for (let index = 0; index < excelData.length; index++) {
 
         // PAYMENT
         await paymentNavigator.completePaymentSigning(row);
-        await confirmationNavigator.completeESign();
+        await confirmationNavigator.completeESign(row);
 
         // ─── CAPTURE POLICY DATA ────────────────────────────────────────────
         await page

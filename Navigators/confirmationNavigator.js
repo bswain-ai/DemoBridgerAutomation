@@ -47,7 +47,7 @@ export class ConfirmationNavigator {
   // ==================================================
   // Confirm & E-Sign Flow (Bulletproof)
   // ==================================================
-  async completeESign() {
+  async completeESign(testData) {
     // ===== Wait for Confirmation Page =====
     await expect(this.page.locator(locators.identityPreflightPage)).toBeVisible(
       {
@@ -107,6 +107,7 @@ export class ConfirmationNavigator {
 
     await this.safeClick(this.page.locator(locators.nxtButton));
 
+    /*
     if (process.env.STATE === "TX") {
       // ==============================
       // Coverage Waivers
@@ -132,6 +133,65 @@ export class ConfirmationNavigator {
 
       await this.safeClick(this.page.locator(locators.nxtButton));
     }
+      */
+
+    if (process.env.STATE === "TX") {
+      // ======================================
+      // Coverage Waivers (Dynamic Handling)
+      // ======================================
+
+      const pipSelection = Number(testData["PIP Selection"]);
+      const umbiSelection = Number(testData["UMBI Selection"]);
+      const umpdSelection = Number(testData["UMPD Selection"]);
+
+      // ======================================
+      // PIP Waiver
+      // Show when PIP = 0
+      // ======================================
+      if (pipSelection === 0) {
+        await expect(
+          this.page.locator(locators.pipWaiverAgreement),
+        ).toBeVisible({
+          timeout: 60000,
+        });
+
+        await this.safeClick(this.page.locator(locators.pipWaiverAgreement));
+      }
+
+      // ======================================
+      // UM/UIM Waiver
+      // Show when UMBI = 0 OR UMPD = 0
+      // ======================================
+      if (umbiSelection === 0 || umpdSelection === 0) {
+        await expect(
+          this.page.locator(locators.umuimWaiverAgreement),
+        ).toBeVisible({
+          timeout: 60000,
+        });
+
+        await this.safeClick(this.page.locator(locators.umuimWaiverAgreement));
+      }
+
+      // ======================================
+      // Fill Signature Names
+      // ======================================
+      if (pipSelection === 0 || umbiSelection === 0 || umpdSelection === 0) {
+        const names = this.page.locator(
+          locators.fullLegalName(fullLegalNameText),
+        );
+
+        const count = await names.count();
+
+        for (let i = 0; i < count; i++) {
+          await names.nth(i).fill(fullLegalNameText);
+        }
+
+        await this.safeClick(this.page.locator(locators.nxtButton));
+      }
+    }
+
+
+
 
     // ==============================
     // Agent eSignature
@@ -221,8 +281,8 @@ export class ConfirmationNavigator {
   // ==================================================
   // Combined Flow
   // ==================================================
-  async completeFullConfirmationFlow() {
-    await this.completeESignAndPurchase();
+  async completeFullConfirmationFlow(testData) {
+    await this.completeESign(testData);
     console.log("Confirmation Flow Completed");
   }
 }

@@ -1,7 +1,6 @@
 import xlsx from "xlsx";
-import { getRaterCoverageData } from "../helpers/raterHelper.js";
+import { getCurrentMappedRaterData } from "../helpers/raterHelper.js";
 import { comparePolicy } from "../helpers/comparisonEngine.js";
-
 
 /**
  * Writes a result row to the output sheet, anchored by TC number.
@@ -51,7 +50,7 @@ export function writeRow(sheet, rowData, tcNo) {
   // handle minor header formatting differences (e.g. "TestCase No" vs
   // "testcaseno") without breaking.
   const tcColIndex = headers.findIndex(
-    (h) => h.toString().toLowerCase().replace(/\s/g, "") === "testcaseno"
+    (h) => h.toString().toLowerCase().replace(/\s/g, "") === "testcaseno",
   );
 
   // Scan every existing data row (row 1 onwards; row 0 is the header) to
@@ -155,9 +154,7 @@ export function createPremiumComparison(resultFile, premiumResults = []) {
   // UI row to its rater result by TC number. Array position is no longer
   // involved — a gap caused by a skipped test case has no effect on any
   // other row's comparison.
-  const raterByTcNo = new Map(
-    premiumResults.map((r) => [r.testCase, r])
-  );
+  const raterByTcNo = new Map(premiumResults.map((r) => [r.testCase, r]));
 
   for (const row of uiData) {
     // The "TestCase No" value was written by createPolicy.spec.js and is
@@ -167,10 +164,7 @@ export function createPremiumComparison(resultFile, premiumResults = []) {
     const raterResult = raterByTcNo.get(tcNo);
 
     const policyNo =
-      raterResult?.policyNo ||
-      row["Policy Number"] ||
-      row["PolicyNo"] ||
-      "";
+      raterResult?.policyNo || row["Policy Number"] || row["PolicyNo"] || "";
 
     const uiPremium =
       Number(
@@ -370,35 +364,8 @@ export function writeUICoverageData(wb, policyNo, type, data) {
     }
   });
 
-  // ================= RATER WRITE =================
-  const raterData = getRaterCoverageData(policyNo, type);
-
-  if (raterData) {
-    Object.entries(raterData).forEach(([coverage, values]) => {
-      const cols = columnMap[coverage];
-      if (!cols) return;
-
-      const [factorCol, calcCol] = cols;
-
-      // Factor
-      sheet[`${factorCol}${excelRow}`] = {
-        t: "n",
-        v: Number(values.factor ?? 0),
-      };
-
-      // Calc (if allowed)
-      if (!noCalcTypes.includes(type)) {
-        sheet[`${calcCol}${excelRow}`] = {
-          t: "n",
-          v: Number(values.calc ?? 0),
-        };
-      } else {
-        sheet[`${calcCol}${excelRow}`] = { t: "s", v: "" };
-      }
-
-      console.log(` ${coverage} → ${factorCol}${excelRow}:${values.factor}`);
-    });
-  }
+  
+//******************************************************************************************** */
 
   // ================= SAVE =================
   wb.Sheets[sheetName] = sheet;
@@ -412,28 +379,44 @@ export function buildComparisonJSON(policyNo, traceData) {
     data: {},
   };
 
-  Object.entries(traceData).forEach(([type, uiData]) => {
-    if (type === "Symbol") return;
+  Object.entries(traceData).forEach(([driverName, vehicleData]) => {
+    result.data[driverName] = {};
 
-    const raterData = getRaterCoverageData(policyNo, type);
-    if (!raterData) return;
+    Object.entries(vehicleData).forEach(([vehicleName, traceTypes]) => {
+      result.data[driverName][vehicleName] = {};
 
-    result.data[type] = {};
+      Object.entries(traceTypes).forEach(([type, uiData]) => {
+        if (type === "Symbol") return;
 
-    Object.entries(uiData).forEach(([coverage, uiValues]) => {
-      const raterValues = raterData[coverage];
-      if (!raterValues) return;
+        // ======================================
+        // GET CURRENT RATER VALUES
+        // ======================================
 
-      result.data[type][coverage] = {
-        ui: {
-          factor: Number(uiValues.factor ?? 0),
-          calc: Number(uiValues.calc ?? 0),
-        },
-        rater: {
-          factor: Number(raterValues.factor ?? 0),
-          calc: raterValues.calc !== null ? Number(raterValues.calc) : null,
-        },
-      };
+        const raterData = getCurrentMappedRaterData(
+          global.currentRaterFile,
+          type,
+          vehicleName,
+          driverName,
+        );
+
+        if (!raterData) {
+          return;
+        }
+
+        result.data[driverName][vehicleName][type] = {};
+
+        Object.entries(uiData).forEach(([coverage, uiValues]) => {
+          const raterValues = raterData[coverage];
+
+          if (!raterValues) return;
+
+          result.data[driverName][vehicleName][type][coverage] = {
+            uiFactor: Number(uiValues.factor ?? 0),
+
+            raterFactor: Number(raterValues.factor ?? 0),
+          };
+        });
+      });
     });
   });
 
@@ -441,6 +424,7 @@ export function buildComparisonJSON(policyNo, traceData) {
 }
 
 // =================== GET MISMATCH COMPARISION ====================
+// =================== GET MISMATCHES ====================
 export function getMismatches(comparisonJSON) {
   const mismatches = [];
 
@@ -461,93 +445,103 @@ export function getMismatches(comparisonJSON) {
   //   comparison produces 1.000 (UI) vs 0.000 (Rater) on every single policy
   //   regardless of what coverages are selected. This is correct rater
   //   behaviour, not a premium error — skip it here to suppress the noise.
-  const SKIP_FACTOR_COVERAGE = {
-    "Limits / Deductible": ["BI", "PD"],
-  };
+  // =====================================================
+  // LOOP DRIVERS
+  // =====================================================
 
-  for (const [type, coverages] of Object.entries(data)) {
-    for (const [coverage, values] of Object.entries(coverages)) {
-      // Skip combinations that are structurally mismatched between the UI
-      // trace and the rater sheet — these are not genuine rating errors.
-      if (SKIP_FACTOR_COVERAGE[type]?.includes(coverage)) {
-        continue;
-      }
+  Object.entries(data).forEach(([driver, vehicles]) => {
+    // =================================================
+    // LOOP VEHICLES
+    // =================================================
 
-      const { ui, rater } = values;
+    Object.entries(vehicles).forEach(([vehicle, types]) => {
+      // =============================================
+      // LOOP TYPES
+      // =============================================
 
-      // Factor comparison with tolerance
-      if (Math.abs(ui.factor - rater.factor) > TOLERANCE) {
-        mismatches.push({
-          policyNo,
-          type,
-          coverage,
-          field: "Factor",
-          ui: ui.factor,
-          rater: rater.factor,
-          diff: ui.factor - rater.factor,
+      Object.entries(types).forEach(([type, coverages]) => {
+        // =========================================
+        // LOOP COVERAGES
+        // =========================================
+
+        Object.entries(coverages).forEach(([coverage, values]) => {
+          const uiFactor = Number(values.uiFactor ?? 0);
+
+          const raterFactor = Number(values.raterFactor ?? 0);
+
+          // =====================================
+          // COMPARE FACTORS ONLY
+          // =====================================
+
+          if (Math.abs(uiFactor - raterFactor) > TOLERANCE) {
+            mismatches.push({
+              policyNo,
+
+              driver,
+
+              vehicle,
+
+              type,
+
+              coverage,
+
+              uiValue: uiFactor,
+
+              raterValue: raterFactor,
+            });
+          }
         });
-      }
-
-      // Calc comparison with tolerance.
-      // Skip if rater.calc is null — null means this factor's contribution
-      // is absorbed into a cumulative row (128/129) and no dedicated calc
-      // cell exists. Comparing ui.calc against 0 (the JS coercion of null)
-      // would produce false mismatches for any active factor in that group.
-      if (rater.calc !== null && Math.abs(ui.calc - rater.calc) > TOLERANCE) {
-        mismatches.push({
-          policyNo,
-          type,
-          coverage,
-          field: "Calculation",
-          ui: ui.calc,
-          rater: rater.calc,
-          diff: ui.calc - rater.calc,
-        });
-      }
-    }
-  }
+      });
+    });
+  });
 
   return mismatches;
 }
 
 export function writeFactorMismatch(wb, mismatches) {
-  const sheetName = "Coverage Factor Mismatch";
+  const sheetName = "Coverage Factor Mismatch New";
 
-  let sheet = wb.Sheets[sheetName];
+  // ==========================================
+  // FORMAT DATA
+  // ==========================================
 
-  // Create sheet if not exists
-  if (!sheet) {
-    console.log(" Creating 'Coverage Factor Mismatch' sheet");
+  const rows = mismatches.map((m) => ({
+    "Policy No": m.policyNo,
 
-    sheet = xlsx.utils.aoa_to_sheet([
-      ["PolicyNo", "Type", "Coverage", "UI Value", "Rater Value"],
-    ]);
+    Driver: m.driver,
 
-    wb.Sheets[sheetName] = sheet;
+    Vehicle: m.vehicle.split("\t")[0],
 
-    if (!wb.SheetNames.includes(sheetName)) {
-      wb.SheetNames.push(sheetName);
-    }
-  }
+    "Factor Type": m.type,
 
-  // Filter ONLY Factor mismatches
-  const factorMismatches = mismatches.filter((m) => m.field === "Factor");
-
-  const existingData = xlsx.utils.sheet_to_json(sheet);
-
-  const newData = factorMismatches.map((m) => ({
-    PolicyNo: m.policyNo,
-    Type: m.type,
     Coverage: m.coverage,
-    "UI Value": Number(m.ui.toFixed(3)),
-    "Rater Value": Number(m.rater.toFixed(3)),
+
+    "UI Factor": Number(m.uiValue.toFixed(3)),
+
+    "Rater Factor": Number(m.raterValue.toFixed(3)),
   }));
 
-  const finalData = [...existingData, ...newData];
+  // ==========================================
+  // CREATE NEW SHEET DIRECTLY
+  // ==========================================
 
-  wb.Sheets[sheetName] = xlsx.utils.json_to_sheet(finalData);
+  const worksheet = xlsx.utils.json_to_sheet(rows);
 
-  console.log(`${newData.length} factor mismatches written`);
+  // ==========================================
+  // REPLACE SHEET
+  // ==========================================
+
+  wb.Sheets[sheetName] = worksheet;
+
+  // ==========================================
+  // ENSURE SHEET EXISTS
+  // ==========================================
+
+  if (!wb.SheetNames.includes(sheetName)) {
+    wb.SheetNames.push(sheetName);
+  }
+
+  console.log(`${rows.length} mismatches written`);
 }
 
 /**

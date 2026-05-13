@@ -7,36 +7,85 @@ export class NameInsuredNavigator {
   }
 
   // ==================================================
-  // Safe Click
+  // Safe Click Utility
   // ==================================================
   async safeClick(locator, maxRetries = 3) {
+    let lastError;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const element =
-          (await locator.count()) > 1 ? locator.first() : locator;
+        // Fresh locator every retry
+        const element = (await locator.count()) > 1 ? locator.first() : locator;
 
+        console.log(`Click Attempt: ${attempt}`);
+
+        // Wait for network/UI stability
+        await this.page.waitForLoadState("domcontentloaded");
+
+        // Wait for overlays to disappear
         await this.page
           .locator(".MuiBackdrop-root")
-          .waitFor({ state: "hidden", timeout: 5000 })
+          .waitFor({
+            state: "hidden",
+            timeout: 7000,
+          })
           .catch(() => {});
 
-        await element.waitFor({ state: "visible", timeout: 20000 });
-        await expect(element).toBeEnabled({ timeout: 20000 });
+        // Wait for element visible
+        await element.waitFor({
+          state: "visible",
+          timeout: 20000,
+        });
 
+        // Scroll properly
         await element.scrollIntoViewIfNeeded();
-        await element.click({ trial: true });
-        await element.click();
 
-        return;
+        // Ensure stable
+        await this.page.waitForTimeout(800);
+
+        // Wait until clickable
+        await expect(element).toBeEnabled();
+
+        // IMPORTANT
+        // Hover before click
+        await element.hover();
+
+        // Click using noWaitAfter
+        await element.click({
+          timeout: 15000,
+          noWaitAfter: true,
+        });
+
+        console.log("Click Successful");
+
+        return true;
       } catch (error) {
-        console.log(`Click retry ${attempt}`);
+        lastError = error;
 
-        if (attempt === maxRetries) {
-          throw error;
-        }
+        console.log(`Retry ${attempt} failed: ${error.message}`);
 
-        await this.page.waitForTimeout(1500);
+        // Extra wait before retry
+        await this.page.waitForTimeout(2000);
       }
+    }
+
+    // =========================
+    // Final JS Click Fallback
+    // =========================
+    try {
+      console.log("Trying JS click fallback");
+
+      const element = (await locator.count()) > 1 ? locator.first() : locator;
+
+      await element.evaluate((el) => {
+        el.click();
+      });
+
+      return true;
+    } catch (finalError) {
+      console.log("All click methods failed");
+
+      throw lastError || finalError;
     }
   }
 
@@ -45,9 +94,7 @@ export class NameInsuredNavigator {
   // ==================================================
   async namedOwnerQuestions(policyData) {
     // Column renamed in TC_Template: "Submission for a Named Owner policy?" → "Named Owner?"
-    const namedOwnerValue = String(
-      policyData["Named Owner?"] || ""
-    )
+    const namedOwnerValue = String(policyData["Named Owner?"] || "")
       .trim()
       .toLowerCase();
 
@@ -63,9 +110,7 @@ export class NameInsuredNavigator {
         .locator(locators.vehicleRegisteredNo)
         .waitFor({ state: "visible", timeout: 50000 });
 
-      await this.safeClick(
-        this.page.locator(locators.vehicleRegisteredNo)
-      );
+      await this.safeClick(this.page.locator(locators.vehicleRegisteredNo));
 
       console.log("Vehicle Registered = NO");
     } else {
@@ -155,7 +200,7 @@ export class NameInsuredNavigator {
     await this.page.selectOption(
       locators.selectTerm,
       // Column renamed in TC_Template: "TermLength" → "Term Length" (with space)
-      policyData["Term Length"].toString()
+      policyData["Term Length"].toString(),
     );
 
     // ===============================

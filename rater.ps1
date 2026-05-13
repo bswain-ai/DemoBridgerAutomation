@@ -1,7 +1,83 @@
 param(
     [string]$file,
-    [string]$jsonPath
+    [string]$jsonPath,
+    [string]$vehicle,
+    [string]$driver
 )
+
+# ==========================================
+# APPLY ONLY VEHICLE / DRIVER MAPPING
+# ==========================================
+
+if ($vehicle -and $driver) {
+
+    Write-Host "Applying Mapping"
+    Write-Host "Vehicle: $vehicle"
+    Write-Host "Driver : $driver"
+
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+    $excel.DisplayAlerts = $false
+
+    $wb = $excel.Workbooks.Open($file)
+
+    $rate = $wb.Sheets.Item("RateOrder")
+
+    # ======================================
+    # APPLY VALUES
+    # ======================================
+
+    $rate.Range("B29").Value2 = $vehicle
+    $rate.Range("E29").Value2 = $driver
+
+    Write-Host "B29 updated -> $vehicle"
+    Write-Host "E29 updated -> $driver"
+
+    # ======================================
+    # RECALCULATE
+    # ======================================
+
+    $excel.CalculateUntilAsyncQueriesDone()
+
+    $excel.CalculateFull()
+
+    $excel.CalculateFullRebuild()
+
+    Start-Sleep -Seconds 5
+
+    # ======================================
+    # FORCE SHEET RECALC
+    # ======================================
+
+    $rate.Calculate()
+
+    Start-Sleep -Seconds 3
+
+    # ======================================
+    # SAVE
+    # ======================================
+
+    $wb.Save()
+
+    Start-Sleep -Seconds 3
+
+    Write-Host "Workbook recalculated and saved"
+
+    $wb.Close($true)
+
+    $excel.Quit()
+
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($rate) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($wb) | Out-Null
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+
+    [GC]::Collect()
+    [GC]::WaitForPendingFinalizers()
+
+    Write-Host "Workbook recalculated and saved"
+
+    exit
+}
 
 # Stop on any error — prevents silent failures where a cell write throws and
 # the script continues populating the rater with partial/wrong data.
@@ -227,191 +303,228 @@ try {
         # We invoke the macro — we do NOT replicate its logic here.
         $wb.Application.Run("CalcPolicyTotalPremium")
 
+        # ==========================================
+        # READ DYNAMIC COMBINATIONS
+        # ==========================================
+
+        $mappings = @()
+
+        for ($row = 152; $row -le 159; $row++) {
+
+            $veh = $rate.Range("G$row").Text.Trim()
+
+            $drv = $rate.Range("H$row").Text.Trim()
+
+            if ($veh -and $drv -and $veh -ne "-" -and $drv -ne "-") {
+
+                $mappings += @{
+                    vehicle = $veh
+                    driver  = $drv
+                }
+            }
+        }
+
+        # ==========================================
+        # SAVE MAPPINGS JSON
+        # ==========================================
+
+        $mappingsJson =
+        $mappings | ConvertTo-Json -Depth 5
+
+        $mappingsPath =
+        "$PSScriptRoot\mappings.json"
+
+        Set-Content `
+            -Path $mappingsPath `
+            -Value $mappingsJson
+
+        Write-Host "[RATER] Mappings saved"
+
         Write-Host "[$tcId][RATER] TEXAS mapping completed"
     }
 
-# ============================================================
-# CALIFORNIA
-# ============================================================
-elseif ($state -in @("CA", "CALIFORNIA")) {
+    # ============================================================
+    # CALIFORNIA
+    # ============================================================
+    elseif ($state -in @("CA", "CALIFORNIA")) {
 
-    Write-Host "[RATER][$tcId] CA mapping started"
+        Write-Host "[RATER][$tcId] CA mapping started"
 
-    # Select correct sheet
-    if ([int]$pol.nonOwner -eq 1) {
-        $rate = $wb.Sheets.Item("NonOwnerRater")
-    }
-    else {
-        $rate = $wb.Sheets.Item("OwnerRater")
-    }
+        # Select correct sheet
+        if ([int]$pol.nonOwner -eq 1) {
+            $rate = $wb.Sheets.Item("NonOwnerRater")
+        }
+        else {
+            $rate = $wb.Sheets.Item("OwnerRater")
+        }
 
-    # --------------------------------------------------------
-    # POLICY DETAILS
-    # --------------------------------------------------------
-    $rate.Range("A3").Value2 = $pol.effectiveDate
-    $rate.Range("B3").Value2 = [int]$pol.term
-    $rate.Range("C3").Value2 = To-YesNo $pol.nonOwner
-    $rate.Range("D3").Value2 = [int]$pol.zip
-    $rate.Range("E3").Value2 = [int]$pol.renewalDiscount
-    $rate.Range("J3").Value2 = [int]$pol.umbi
-    $rate.Range("L3").Value2 = [int]$pol.umpd
+        # --------------------------------------------------------
+        # POLICY DETAILS
+        # --------------------------------------------------------
+        $rate.Range("A3").Value2 = $pol.effectiveDate
+        $rate.Range("B3").Value2 = [int]$pol.term
+        $rate.Range("C3").Value2 = To-YesNo $pol.nonOwner
+        $rate.Range("D3").Value2 = [int]$pol.zip
+        $rate.Range("E3").Value2 = [int]$pol.renewalDiscount
+        $rate.Range("J3").Value2 = [int]$pol.umbi
+        $rate.Range("L3").Value2 = [int]$pol.umpd
     
-    # --------------------------------------------------------
-    # OPTIONAL COVERAGES
-    # --------------------------------------------------------
-    $rate.Range("N3").Value2 = To-YN $pol.tripleDeductible
-    $rate.Range("O3").Value2 = [int]$pol.motorclub
+        # --------------------------------------------------------
+        # OPTIONAL COVERAGES
+        # --------------------------------------------------------
+        $rate.Range("N3").Value2 = To-YN $pol.tripleDeductible
+        $rate.Range("O3").Value2 = [int]$pol.motorclub
 
-    # MedPay Selection
-    $rate.Range("P3").Value2 = [int]$pol.medpay
+        # MedPay Selection
+        $rate.Range("P3").Value2 = [int]$pol.medpay
 
-    # MedPay Limit
-    if ([int]$pol.medpay -eq 1 -and $pol.medpayLimit) {
-    $rate.Range("Q3").Value2 = [int]$pol.medpayLimit
-    }
+        # MedPay Limit
+        if ([int]$pol.medpay -eq 1 -and $pol.medpayLimit) {
+            $rate.Range("Q3").Value2 = [int]$pol.medpayLimit
+        }
     
-    $rate.Range("R3").Value2 = [int]$pol.cdw
-    #$rate.Range("U3").NumberFormat = "@"
-    #$rate.Range("U3").Value2 = "$($pol.deductibleDiscount)"
-    $rate.Range("U3").Value2 = [int]$pol.bipdSymbol
-    $rate.Range("V3").Value2 = [int]$pol.mpSymbol
+        $rate.Range("R3").Value2 = [int]$pol.cdw
+        #$rate.Range("U3").NumberFormat = "@"
+        #$rate.Range("U3").Value2 = "$($pol.deductibleDiscount)"
+        $rate.Range("U3").Value2 = [int]$pol.bipdSymbol
+        $rate.Range("V3").Value2 = [int]$pol.mpSymbol
 
-    # --------------------------------------------------------
-    # VEHICLE SECTION STARTS ROW 10
-    # --------------------------------------------------------
-   for ($v = 0; $v -lt $data.vehicles.Count; $v++) {
+        # --------------------------------------------------------
+        # VEHICLE SECTION STARTS ROW 10
+        # --------------------------------------------------------
+        for ($v = 0; $v -lt $data.vehicles.Count; $v++) {
 
-    $veh = $data.vehicles[$v]
-    $row = 10 + $v
+            $veh = $data.vehicles[$v]
+            $row = 10 + $v
 
-    # Vehicle No
-    $rate.Range("A$($row)").Value2 = [int]($v + 1)
+            # Vehicle No
+            $rate.Range("A$($row)").Value2 = [int]($v + 1)
 
-    # VIN
-    $rate.Range("B$($row)").Value2 = "$($veh.vin)"
+            # VIN
+            $rate.Range("B$($row)").Value2 = "$($veh.vin)"
 
-    # Year
-    $rate.Range("C$($row)").Value2 = [int]$veh.year
+            # Year
+            $rate.Range("C$($row)").Value2 = [int]$veh.year
 
 
-    # Mileage
-    $rate.Range("D$($row)").Value2 = [int]$veh.mileage
+            # Mileage
+            $rate.Range("D$($row)").Value2 = [int]$veh.mileage
 
-    # Business Use
-    if ($veh.vehicleUse -eq "Business") {
-    $rate.Range("E$($row)").Value2 = "Y"
+            # Business Use
+            if ($veh.vehicleUse -eq "Business") {
+                $rate.Range("E$($row)").Value2 = "Y"
+            }
+            else {
+                $rate.Range("E$($row)").Value2 = "N"
+            }
+
+            # Comp Selection
+            $rate.Range("F$($row)").Value2 = [int]$veh.compSelection
+
+            # Coll Selection
+            $rate.Range("G$($row)").Value2 = [int]$veh.collSelection
+
+            # Symbol
+            $rate.Range("K$($row)").Value2 = "$($veh.compSymbol)"
+            $rate.Range("L$($row)").Value2 = "$($veh.collSymbol)"
+
+            # Comp Deductible
+            if ([int]$veh.compSelection -eq 1) {
+                $rate.Range("H$($row)").Value2 = [int]$veh.compDed
+            }
+            else {
+                $rate.Range("H$($row)").Value2 = 0
+            }
+
+            # Coll Deductible
+            if ([int]$veh.collSelection -eq 1) {
+                $rate.Range("I$($row)").Value2 = [int]$veh.collDed
+            }
+            else {
+                $rate.Range("I$($row)").Value2 = 0
+            }
+
+            # Comp Deductible
+            if ([int]$veh.compSelection -eq 1) {
+                $rate.Range("J$($row)").Value2 = [int]$veh.cdwDed
+            }
+            else {
+                $rate.Range("J$($row)").Value2 = 0
+            }
+
+            # --------------------------------------------------------
+            # DRIVER SECTION STARTS ROW 21
+            # --------------------------------------------------------
+            for ($d = 0; $d -lt $data.drivers.Count; $d++) {
+
+                $drv = $data.drivers[$d]
+                $row = 21 + $d
+
+                # Driver No
+                $rate.Range("A$($row)").Value2 = [int]($d + 1)
+
+                # DOB
+                $rate.Range("B$($row)").Value2 = "$($drv.dob)"
+
+                # Marital Status
+                if ($drv.maritalStatus.ToString().Trim().ToUpper() -eq "SINGLE") {
+                    $rate.Range("C$($row)").Value2 = "S"
+                }
+                else {
+                    $rate.Range("C$($row)").Value2 = "M"
+                }
+
+                # Driving Experience
+                $rate.Range("D$($row)").Value2 = [int]$drv.drivingExp
+
+                # License Years
+                $rate.Range("E$($row)").Value2 = [int]$drv.licenseYears
+
+                # Driver Age / Good Student / Youthful Driver etc.
+                # Formula / calculated cells -> leave untouched
+
+                # 55 Plus Driver
+                $rate.Range("F$row").Value2 = To-YN $drv.age55OrOlder
+
+                # Youthful Driver
+                $rate.Range("G$row").Value2 = To-YN $drv.youthfulDriver
+
+                # Good Student Discount
+                $rate.Range("H$row").Value2 = To-YN $drv.goodStudent
+
+                # Major Violations
+                $rate.Range("I$row").Value2 = [int]$drv.majorViolations
+
+                # Minor Violations
+                $rate.Range("J$row").Value2 = [int]$drv.minorViolations
+
+                # Chargeable Accident 36 Months
+                $rate.Range("K$row").Value2 = [int]$drv.chargeableAcc36
+
+                # Chargeable Accident <60 Months
+                $rate.Range("L$row").Value2 = [int]$drv.chargeableAcc60
+
+                # Convictions <60 Months
+                $rate.Range("M$row").Value2 = [int]$drv.convictions60
+
+                $rate.Range("P$row").Value2 = 'N'
+            }
+        }
+        # --------------------------------------------------------
+        # RECALCULATE
+        # --------------------------------------------------------
+        $excel.Calculate()
+        Start-Sleep -Seconds 2
+
+        Write-Host "[$tcId][RATER] CALIFORNIA mapping completed"
     }
+
     else {
-    $rate.Range("E$($row)").Value2 = "N"
+        throw "Unsupported state: $state"
     }
 
-    # Comp Selection
-    $rate.Range("F$($row)").Value2 = [int]$veh.compSelection
-
-    # Coll Selection
-    $rate.Range("G$($row)").Value2 = [int]$veh.collSelection
-
-    # Symbol
-    $rate.Range("K$($row)").Value2 = "$($veh.compSymbol)"
-    $rate.Range("L$($row)").Value2 = "$($veh.collSymbol)"
-
-    # Comp Deductible
-    if ([int]$veh.compSelection -eq 1) {
-        $rate.Range("H$($row)").Value2 = [int]$veh.compDed
-    }
-    else {
-        $rate.Range("H$($row)").Value2 = 0
-    }
-
-    # Coll Deductible
-    if ([int]$veh.collSelection -eq 1) {
-        $rate.Range("I$($row)").Value2 = [int]$veh.collDed
-    }
-    else {
-        $rate.Range("I$($row)").Value2 = 0
-    }
-
-    # Comp Deductible
-    if ([int]$veh.compSelection -eq 1) {
-        $rate.Range("J$($row)").Value2 = [int]$veh.cdwDed
-    }
-    else {
-        $rate.Range("J$($row)").Value2 = 0
-    }
-
-# --------------------------------------------------------
-# DRIVER SECTION STARTS ROW 21
-# --------------------------------------------------------
-for ($d = 0; $d -lt $data.drivers.Count; $d++) {
-
-    $drv = $data.drivers[$d]
-    $row = 21 + $d
-
-    # Driver No
-    $rate.Range("A$($row)").Value2 = [int]($d + 1)
-
-    # DOB
-    $rate.Range("B$($row)").Value2 = "$($drv.dob)"
-
-    # Marital Status
-    if ($drv.maritalStatus.ToString().Trim().ToUpper() -eq "SINGLE") {
-    $rate.Range("C$($row)").Value2 = "S"
-    }
-    else {
-        $rate.Range("C$($row)").Value2 = "M"
-    }
-
-    # Driving Experience
-    $rate.Range("D$($row)").Value2 = [int]$drv.drivingExp
-
-    # License Years
-    $rate.Range("E$($row)").Value2 = [int]$drv.licenseYears
-
-    # Driver Age / Good Student / Youthful Driver etc.
-    # Formula / calculated cells -> leave untouched
-
-    # 55 Plus Driver
-    $rate.Range("F$row").Value2 = To-YN $drv.age55OrOlder
-
-    # Youthful Driver
-    $rate.Range("G$row").Value2 = To-YN $drv.youthfulDriver
-
-    # Good Student Discount
-    $rate.Range("H$row").Value2 = To-YN $drv.goodStudent
-
-   # Major Violations
-    $rate.Range("I$row").Value2 = [int]$drv.majorViolations
-
-    # Minor Violations
-    $rate.Range("J$row").Value2 = [int]$drv.minorViolations
-
-    # Chargeable Accident 36 Months
-    $rate.Range("K$row").Value2 = [int]$drv.chargeableAcc36
-
-    # Chargeable Accident <60 Months
-    $rate.Range("L$row").Value2 = [int]$drv.chargeableAcc60
-
-    # Convictions <60 Months
-    $rate.Range("M$row").Value2 = [int]$drv.convictions60
-
-    $rate.Range("P$row").Value2 = 'N'
-    }
-}
-    # --------------------------------------------------------
-    # RECALCULATE
-    # --------------------------------------------------------
-    $excel.Calculate()
-    Start-Sleep -Seconds 2
-
-    Write-Host "[$tcId][RATER] CALIFORNIA mapping completed"
-}
-
-else {
-    throw "Unsupported state: $state"
-}
-
-$wb.Save()
-$wb.Close($true)
+    $wb.Save()
+    $wb.Close($true)
 }
 finally {
     if ($wb -ne $null) { try { $wb.Close($false) } catch {} }

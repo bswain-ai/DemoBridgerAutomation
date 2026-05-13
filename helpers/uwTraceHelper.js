@@ -84,6 +84,7 @@ export class UwTraceHelper {
         "Vehicle Discount",
         "Rollover Discount",
         "Sum of discounts",
+        "Anti-Theft Discount",
       ];
 
       const headers = [
@@ -101,113 +102,191 @@ export class UwTraceHelper {
         "RSA",
       ];
 
-      for (const label of labels) {
-        console.log(`\n Processing: ${label}`);
-        result[label] = {};
+      // ===================================================
+      // FIND ALL BASE ROWS
+      // EACH BASE ROW REPRESENTS ONE TRACE SECTION
+      // ===================================================
 
-        // Substring match (td:has-text) works for all data rows.
-        // The .filter({ hasNot: ... }) excludes group header rows whose
-        // second cell reads "Policy, 1 Vehicle" — this is what caused
-        // "Vehicle Discount" (and "Anti-Theft Discount") to silently return
-        // empty results: .first() was picking the group header TR, not the
-        // data TR. All other labels are unaffected by this filter.
-        const row = this.page
-          .locator("tr", {
-            has: this.page.locator(`td:has-text("${label}")`),
-          })
-          .filter({
-            hasNot: this.page.locator('td:has-text("Policy")'),
-          })
-          .first();
+      const baseRows = this.page.locator(`tr:has(td:text-is("Base"))`);
 
-        if (!(await row.count())) {
-          console.log(`Row not found: ${label}`);
-          continue;
+      const sectionCount = await baseRows.count();
+
+      console.log(`Total Trace Sections: ${sectionCount}`);
+
+      // ===================================================
+      // LOOP EACH SECTION
+      // ===================================================
+
+      for (let s = 0; s < sectionCount; s++) {
+        const baseRow = baseRows.nth(s);
+
+        // ================================================
+        // GET PARENT TABLE
+        // ================================================
+
+        const section = baseRow.locator("xpath=ancestor::table[1]");
+
+        // ================================================
+        // DRIVER / VEHICLE HEADER
+        // ================================================
+
+        let driverName = `Driver_${s + 1}`;
+        let vehicleName = `Vehicle_${s + 1}`;
+
+        try {
+          const headerRow = section.locator("tr").nth(0);
+
+          const headerText = await headerRow.innerText();
+
+          const lines = headerText
+            .split("\n")
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+          if (lines.length >= 2) {
+            driverName = lines[0];
+            vehicleName = lines[1];
+          }
+        } catch {
+          console.log("Could not extract driver/vehicle");
         }
 
-        // ===== LOOP ALL COLUMNS =====
-        for (let col = 2; col <= 13; col++) {
-          const coverage = headers[col - 2];
-          const cell = row.locator(`td:nth-child(${col})`);
+        console.log(`\n====================================`);
+        console.log(`Driver : ${driverName}`);
+        console.log(`Vehicle: ${vehicleName}`);
+        console.log(`====================================`);
 
-          if (!(await cell.count())) continue;
+        // ================================================
+        // CREATE JSON
+        // ================================================
 
-          // ================= GET RAW TEXT =================
-          let rawText = (await cell.innerText())?.trim();
+        if (!result[driverName]) {
+          result[driverName] = {};
+        }
 
-          //console.log("rawText = ", rawText);
+        result[driverName][vehicleName] = {};
 
-          if (!rawText || rawText === "-" || rawText.includes("Policy")) {
-            continue; // MOVE TO NEXT CELL (THIS IS KEY)
+        // ================================================
+        // PROCESS LABELS
+        // ================================================
+
+        for (const label of labels) {
+          console.log(`\n Processing: ${label}`);
+
+          result[driverName][vehicleName][label] = {};
+
+          // ============================================
+          // FIND ROW INSIDE CURRENT SECTION
+          // ============================================
+
+          const row = section
+            .locator(`tr:has(td:has-text("${label}"))`)
+            .first();
+
+          if (!(await row.count())) {
+            console.log(`Row not found: ${label}`);
+            continue;
           }
 
-          // ================= FACTOR EXTRACTION =================
-          let factorValue = null;
+          // ============================================
+          // COVERAGE LOOP
+          // ============================================
 
-          //  Step 1: Try extracting from NON-RED spans (best for Anti-Theft)
-          const spans = cell.locator("span");
-          let spanText = null;
+          for (let col = 2; col <= 13; col++) {
+            const coverage = headers[col - 2];
 
-          if (await spans.count()) {
+            const cell = row.locator(`td:nth-child(${col})`);
+
+            if (!(await cell.count())) continue;
+
+            let rawText = (await cell.innerText())?.trim();
+
+            if (!rawText || rawText === "-" || rawText.includes("Policy")) {
+              continue;
+            }
+
+            // ==========================================
+            // FACTOR EXTRACTION
+            // ==========================================
+
+            let factorValue = null;
+
+            const spans = cell.locator("span");
+
+            let spanText = null;
+
             const spanCount = await spans.count();
 
             for (let i = 0; i < spanCount; i++) {
               const span = spans.nth(i);
+
               const text = (await span.textContent())?.trim();
+
               const style = await span.getAttribute("style");
 
-              // Ignore red
+              // ignore red span
               if (style && style.includes("red")) continue;
 
-              // Only numeric
               if (text && /^\d+(\.\d+)?$/.test(text)) {
                 spanText = text;
                 break;
               }
             }
-          }
 
-          // Step 2: Decide source (span preferred, fallback to rawText)
-          const finalText = spanText || rawText;
+            const finalText = spanText || rawText;
 
-          // Step 3: Extract numeric value
-          if (finalText && finalText !== "-" && finalText.trim() !== "") {
-            const match = finalText.match(/[\d,.]+/);
-            if (match && match[0].trim() !== "") {
-              factorValue = match[0].replace(/,/g, "");
+            if (finalText) {
+              const match = finalText.match(/[\d,.]+/);
+
+              if (match) {
+                factorValue = match[0].replace(/,/g, "");
+              }
+            }
+
+            // ==========================================
+            // CALC VALUE
+            // ==========================================
+
+            let calcValue = null;
+
+            const redSpan = cell.locator("span[style*='red']");
+
+            if (await redSpan.count()) {
+              const raw = (await redSpan.first().textContent())?.trim();
+
+              if (raw && /^[\d,.]+$/.test(raw)) {
+                calcValue = raw.replace(/,/g, "");
+              }
+            }
+
+            // ==========================================
+            // STORE
+            // ==========================================
+
+            if (factorValue !== null || calcValue !== null) {
+              result[driverName][vehicleName][label][coverage] = {
+                factor: factorValue !== null ? Number(factorValue) : null,
+
+                calc: calcValue !== null ? Number(calcValue) : null,
+              };
+
+              console.log(
+                `➡️ ${label} | ${coverage} | Factor: ${
+                  factorValue ?? "N/A"
+                } | Calc: ${calcValue ?? "N/A"}`,
+              );
             }
           }
 
-          // ================= CALCULATION (RED VALUE) =================
-          let calcValue = null;
+          // ============================================
+          // EMPTY CHECK
+          // ============================================
 
-          const redSpan = cell.locator("span[style*='red']");
-
-          if (await redSpan.count()) {
-            const raw = (await redSpan.first().textContent())?.trim();
-
-            if (raw && /^[\d,.]+$/.test(raw)) {
-              calcValue = raw.replace(/,/g, "");
-            }
+          if (
+            Object.keys(result[driverName][vehicleName][label]).length === 0
+          ) {
+            console.log(`${label} has no valid data (empty or '-')`);
           }
-
-          // ================= STORE =================
-          if (factorValue !== null || calcValue !== null) {
-            result[label][coverage] = {
-              factor: factorValue ? Number(factorValue) : null,
-              calc: calcValue ? Number(calcValue) : null,
-            };
-            console.log(
-              `➡️ ${label} | ${coverage} | Factor: ${
-                factorValue && factorValue !== "" ? factorValue : "N/A"
-              } | Calc: ${calcValue ?? "N/A"}`,
-            );
-          }
-        }
-
-        // Row-level fallback check
-        if (Object.keys(result[label]).length === 0) {
-          console.log(`${label} has no valid data (empty or '-')`);
         }
       }
 
@@ -216,7 +295,105 @@ export class UwTraceHelper {
       return result;
     } catch (error) {
       console.log("Error while capturing trace:", error.message);
+
       return null;
+    }
+  }
+
+  // ================= GET UI DRIVER/VEHICLE MAPPINGS =================
+  async getDynamicMappings() {
+    try {
+      const mappings = [];
+
+      // ==========================================
+      // ALL MAPPING ROWS
+      // ==========================================
+
+      const rows = this.page.locator("tr:has(td:text-is('Base'))");
+
+      const count = await rows.count();
+
+      console.log(`Mapping Rows Found: ${count}`);
+
+      // ==========================================
+      // LOOP
+      // ==========================================
+
+      for (let i = 0; i < count; i++) {
+        const row = rows.nth(i);
+
+        const section = row.locator("xpath=ancestor::table[1]");
+
+        let driverName = "";
+        let vehicleName = "";
+
+        // ======================================
+        // HEADER
+        // ======================================
+
+        try {
+          const headerRow = section.locator("tr").nth(0);
+
+          const headerText = await headerRow.innerText();
+
+          const lines = headerText
+            .split("\n")
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+          if (lines.length >= 2) {
+            driverName = lines[0];
+            vehicleName = lines[1];
+          }
+        } catch {
+          console.log("Unable to capture mapping");
+        }
+
+        // ======================================
+        // CAPTURE VEHICLE SELECTOR
+        // ======================================
+
+        const vehicleLocator = section.locator("input[placeholder='Vehicle']");
+
+        let vehicle = "";
+
+        if (await vehicleLocator.count()) {
+          vehicle = await vehicleLocator.first().inputValue();
+        }
+
+        // ======================================
+        // CAPTURE DRIVER SELECTOR
+        // ======================================
+
+        const driverLocator = section.locator("input[placeholder='Driver']");
+
+        let driver = "";
+
+        if (await driverLocator.count()) {
+          driver = await driverLocator.first().inputValue();
+        }
+
+        // ======================================
+        // STORE
+        // ======================================
+
+        mappings.push({
+          vehicle,
+          driver,
+          driverName,
+          vehicleName,
+        });
+
+        console.log(`Mapping => Vehicle: ${vehicle} Driver: ${driver}`);
+      }
+
+      console.log("Dynamic Mappings:", mappings);
+
+      return mappings;
+    } catch (error) {
+      console.log("Error getting mappings:", error.message);
+
+      return [];
     }
   }
 
@@ -241,5 +418,40 @@ export class UwTraceHelper {
     );
 
     await this.page.waitForLoadState("networkidle");
+  }
+
+  // =====================================================
+  // SELECT RATED VEHICLE
+  // =====================================================
+
+  async selectRatedVehicle(vehicleNo) {
+    try {
+      console.log(`Selecting Vehicle: ${vehicleNo}`);
+
+      // =========================================
+      // CLICK VEHICLE DROPDOWN
+      // =========================================
+
+      const vehicleDropdown = this.page
+        .locator("input")
+        .filter({ hasText: "" })
+        .nth(0);
+
+      await vehicleDropdown.click();
+
+      await this.page.waitForTimeout(1000);
+
+      // =========================================
+      // SELECT OPTION
+      // =========================================
+
+      await this.page.locator(`text="${vehicleNo}"`).last().click();
+
+      await this.page.waitForTimeout(3000);
+
+      console.log(`Vehicle Selected: ${vehicleNo}`);
+    } catch (error) {
+      console.log("Error selecting vehicle:", error.message);
+    }
   }
 }
