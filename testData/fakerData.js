@@ -30,7 +30,6 @@ export class FakerData {
 
   // =====================================================
   // SAFE / INVALID EMAIL
-  // Uses reserved testing domain
   // =====================================================
   static getEmail(firstName, lastName) {
 
