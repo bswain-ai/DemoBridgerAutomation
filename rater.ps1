@@ -304,7 +304,7 @@ try {
         $wb.Application.Run("CalcPolicyTotalPremium")
 
         # ==========================================
-        # READ DYNAMIC COMBINATIONS
+        # READ DYNAMIC COMBINATIONS / For Multiple Vehicle/ Driver
         # ==========================================
 
         $mappings = @()

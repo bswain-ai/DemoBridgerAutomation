@@ -1,7 +1,6 @@
 import { faker } from "@faker-js/faker";
 
 export class FakerData {
-
   // =====================================================
   // FIRST NAME
   // =====================================================
@@ -20,35 +19,19 @@ export class FakerData {
   // SAFE / INVALID PHONE NUMBER
   // =====================================================
   static getPhone() {
-    const last4 = faker.number.int({
-      min: 1000,
-      max: 9999,
-    });
-
-    return `555-010-${last4}`;
+    return faker.helpers.replaceSymbols("555-###-####");
   }
 
   // =====================================================
   // SAFE / INVALID EMAIL
   // =====================================================
-  static getEmail(firstName, lastName) {
-
-    const safeFirstName = firstName
-      .replace(/[^a-zA-Z]/g, "")
-      .toLowerCase();
-
-    const safeLastName = lastName
-      .replace(/[^a-zA-Z]/g, "")
-      .toLowerCase();
-
-    return `autotest.${safeFirstName}.${safeLastName}@example.com`;
+  static getEmail() {
+    return faker.internet.exampleEmail();
   }
-
   // =====================================================
   // GENERATE NAMED INSURED
   // =====================================================
   static generateNamedInsured() {
-
     const firstName = this.getFirstName();
     const lastName = this.getLastName();
 

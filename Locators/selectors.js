@@ -13,7 +13,7 @@ export const locators = {
 
   bridgerLogo: `//img[@alt='App-bar-logo']`,
   quoteList: `[data-test="quoteList"]`,
-  newSubmissionBtn: `//button[normalize-space()='New Submission']`,
+  newSubmissionBtn: `[data-test="new-submission-btn"]`,
   stateDropdown: `//button[normalize-space()='New Submission']`,
   selectState: `#pol_issued_state`,
   programDrodown: `//select[@id='pol_lob']`,
@@ -162,7 +162,7 @@ export const locators = {
   //============================== Payment and Signing Details ==================================
   paymentSigningDetails: `//h5[normalize-space()='Payment and Signing Details']`,
   checkNumberTextBox: `//input[@id='pol_payment_check_number']`,
-  producerOnlyChkBox: `//div[h5[text()='Producer Only']]//input`,
+  producerOnlyChkBox: `//div[h5[text()='Producer Only']]//input[@type='checkbox']`,
   officeEsign: `//div[text()='In Office eSign']`,
   identityPreflightPage: `//h4[contains(text(),'Identity')]`,
   handoffDeviceCheckbox: `//span[contains(text(),'I confirm I')]/preceding-sibling::span/input[@type='checkbox']`,

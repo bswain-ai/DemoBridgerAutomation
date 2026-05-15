@@ -1,5 +1,8 @@
 import xlsx from "xlsx";
-import { getCurrentMappedRaterData } from "../helpers/raterHelper.js";
+import {
+  getCurrentMappedRaterData,
+  getCaliforniaMappedRaterData,
+} from "./raterHelper.js";
 import { comparePolicy } from "../helpers/comparisonEngine.js";
 
 /**
@@ -364,9 +367,6 @@ export function writeUICoverageData(wb, policyNo, type, data) {
     }
   });
 
-  
-//******************************************************************************************** */
-
   // ================= SAVE =================
   wb.Sheets[sheetName] = sheet;
   //xlsx.writeFile(wb, resultFile);
@@ -379,52 +379,188 @@ export function buildComparisonJSON(policyNo, traceData) {
     data: {},
   };
 
+  // ==========================================
+  // CURRENT STATE
+  // ==========================================
+
+  const state = process.env.STATE;
+
+  console.log(`Building Comparison JSON for State: ${state}`);
+
+  // ==========================================
+  // LOOP DRIVERS
+  // ==========================================
+
   Object.entries(traceData).forEach(([driverName, vehicleData]) => {
     result.data[driverName] = {};
+
+    // ======================================
+    // LOOP VEHICLES
+    // ======================================
 
     Object.entries(vehicleData).forEach(([vehicleName, traceTypes]) => {
       result.data[driverName][vehicleName] = {};
 
+      // ==================================
+      // LOOP FACTOR TYPES
+      // ==================================
+
       Object.entries(traceTypes).forEach(([type, uiData]) => {
-        if (type === "Symbol") return;
+        // ==================================
+        // SKIP EMPTY
+        // ==================================
 
-        // ======================================
-        // GET CURRENT RATER VALUES
-        // ======================================
-
-        const raterData = getCurrentMappedRaterData(
-          global.currentRaterFile,
-          type,
-          vehicleName,
-          driverName,
-        );
-
-        if (!raterData) {
+        if (!uiData || Object.keys(uiData).length === 0) {
           return;
         }
 
+        // ==================================
+        // OPTIONAL SKIP
+        // ==================================
+
+        // ==================================
+        // OPTIONAL SKIP
+        // ==================================
+
+        if (
+          type === "Symbol" ||
+          type.includes("Subtotal") ||
+          type === "Total"
+        ) {
+          return;
+        }
+
+        // ==================================
+        // GET RATER DATA
+        // ==================================
+
+        let raterData = null;
+
+        // ==================================
+        // TEXAS
+        // ==================================
+
+        if (state === "TX" || state === "Texas") {
+          raterData = getCurrentMappedRaterData(
+            global.currentRaterFile,
+            type,
+            vehicleName,
+            driverName,
+          );
+        }
+
+        // ==================================
+        // CALIFORNIA
+        // ==================================
+
+        if (state === "CA" || state === "California") {
+          raterData = getCaliforniaMappedRaterData(
+            global.currentRaterFile,
+            type,
+          );
+        }
+
+        // ==================================
+        // NO RATER DATA
+        // ==================================
+
+        if (!raterData) {
+          console.log(`No Rater Data -> ${type}`);
+          return;
+        }
+
+        console.log(
+          `Rater Data Found -> ${type}`,
+          JSON.stringify(raterData, null, 2),
+        );
+
         result.data[driverName][vehicleName][type] = {};
 
-        Object.entries(uiData).forEach(([coverage, uiValues]) => {
-          const raterValues = raterData[coverage];
+        // ==================================
+        // LOOP COVERAGES
+        // ==================================
 
-          if (!raterValues) return;
+        Object.entries(uiData).forEach(([coverage, uiValues]) => {
+          // ==================================
+          // NORMALIZE COVERAGE
+          // ==================================
+
+          const normalizedCoverage = coverage === "COLDW" ? "CDW" : coverage;
+
+          const raterValues = raterData[normalizedCoverage];
+
+          // ==================================
+          // COVERAGE NOT FOUND
+          // ==================================
+
+          if (!raterValues) {
+            console.log(`Coverage Missing -> ${coverage}`);
+
+            return;
+          }
+
+          // ==================================
+          // FACTORS
+          // ==================================
+
+          const uiFactor = Number(uiValues.factor ?? 0);
+
+          const raterFactor = Number(raterValues.factor ?? 0);
+
+          // ==================================
+          // STORE
+          // ==================================
 
           result.data[driverName][vehicleName][type][coverage] = {
-            uiFactor: Number(uiValues.factor ?? 0),
-
-            raterFactor: Number(raterValues.factor ?? 0),
+            uiFactor,
+            raterFactor,
           };
+
+          console.log(
+            `${type} | ${coverage} | UI=${uiFactor} | Rater=${raterFactor}`,
+          );
         });
+
+        // ==================================
+        // REMOVE EMPTY TYPES
+        // ==================================
+
+        if (
+          Object.keys(result.data[driverName][vehicleName][type]).length === 0
+        ) {
+          delete result.data[driverName][vehicleName][type];
+        }
       });
+
+      // ==================================
+      // REMOVE EMPTY VEHICLES
+      // ==================================
+
+      if (Object.keys(result.data[driverName][vehicleName]).length === 0) {
+        delete result.data[driverName][vehicleName];
+      }
     });
+
+    // ==================================
+    // REMOVE EMPTY DRIVERS
+    // ==================================
+
+    if (Object.keys(result.data[driverName]).length === 0) {
+      delete result.data[driverName];
+    }
   });
+
+  // ==================================
+  // FINAL RESULT
+  // ==================================
+
+  console.log(`Comparison JSON Built for Policy: ${policyNo}`);
 
   return result;
 }
 
 // =================== GET MISMATCH COMPARISION ====================
-// =================== GET MISMATCHES ====================
+
 export function getMismatches(comparisonJSON) {
   const mismatches = [];
 
@@ -510,7 +646,9 @@ export function writeFactorMismatch(wb, mismatches) {
 
     Driver: m.driver,
 
-    Vehicle: m.vehicle.split("\t")[0],
+    Vehicle: String(m.vehicle || "")
+      .replace(/\t/g, " ")
+      .trim(),
 
     "Factor Type": m.type,
 

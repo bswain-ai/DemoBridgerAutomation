@@ -547,138 +547,335 @@ export function applyRateMapping(raterFile, vehicle, driver) {
 // GET CURRENT RATER DATA
 // =====================================================
 
-export function getCurrentMappedRaterData(raterFile, type) {
-  try {
-    // ============================================
-    // ALWAYS READ FRESH FILE
-    // ============================================
+export function getCurrentMappedRaterData(
+  raterFile,
+  type,
+  vehicleName = "",
+  driverName = "",
+) {
+  const state = process.env.STATE;
 
-    const wb = xlsx.readFile(raterFile, {
-      raw: true,
-      cellFormula: false,
-      cellNF: false,
-      cellText: false,
-    });
+  console.log(`Getting Rater Data -> State: ${state} | Type: ${type}`);
 
-    const sheet = wb.Sheets["RateOrder"];
+  // ============================================
+  // CALIFORNIA
+  // ============================================
 
-    if (!sheet) {
-      console.log("RateOrder sheet missing");
-      return null;
-    }
+  if (state === "CA" || state === "California") {
+    console.log("Using California Parser");
 
-    // ============================================
-    // DEBUG CURRENT SELECTION
-    // ============================================
+    return getCaliforniaMappedRaterData(raterFile, type);
+  }
 
-    console.log(
-      "Current Vehicle:",
-      sheet["B29"]?.v,
-      "Current Driver:",
-      sheet["E29"]?.v,
-    );
+  // ============================================
+  // TEXAS ONLY
+  // ============================================
 
-    // ============================================
-    // ROW MAP
-    // ============================================
+  if (state === "TX" || state === "Texas") {
+    console.log("Using Texas Parser");
 
-    const rowMap = {
-      Base: 86,
-      Region: 87,
-      Profile: 88,
-      Household: 89,
-      "Policy class": 90,
-      "Model year": 91,
-      "ISO Factor": 92,
-      "Non-Owner / FR": 93,
-      "Limits / Deductible": 94,
-      Term: 95,
-      "Sum of Surcharges": 96,
-      "License Type Surcharge": 97,
-      "Business Use": 98,
-      "Violations Surcharge": 99,
-      "Learners Permit": 100,
-      "Unacceptable Risk Surcharge": 101,
-      "Vehicle Surcharge": 102,
-      "SUM OF DISCOUNTS-MAX CAP": 103,
-      "Sum of discounts": 104,
-      "Multi-Car Discount": 105,
-      "Prior Coverage Discount": 106,
-      "Renewal Discount": 107,
-      "Rollover Discount": 108,
-      "Defensive Driving Discount": 109,
-      "Drug/Alcohol Awareness Discount": 110,
-      "Vehicle Discount": 111,
-      "Anti-Theft Discount": 112,
-    };
+    try {
+      // ============================================
+      // ALWAYS READ FRESH FILE
+      // ============================================
 
-    const row = rowMap[type];
+      const wb = xlsx.readFile(raterFile, {
+        raw: true,
+        cellFormula: false,
+        cellNF: false,
+        cellText: false,
+      });
 
-    if (!row) {
-      console.log(`No row mapping for ${type}`);
-      return null;
-    }
+      const sheet = wb.Sheets["RateOrder"];
 
-    // ============================================
-    // SAFE VALUE
-    // ============================================
+      if (!sheet) {
+        console.log("RateOrder sheet missing");
 
-    const getVal = (cell) => {
-      const value = sheet[cell]?.v;
-
-      if (value === undefined || value === null || value === "") {
-        return 0;
+        return null;
       }
 
-      return Number(value);
-    };
+      // ============================================
+      // DEBUG CURRENT SELECTION
+      // ============================================
 
-    const result = {
-      BI: {
-        factor: getVal(`C${row}`),
-      },
+      console.log(
+        "Current Vehicle:",
+        sheet["B29"]?.v,
+        "Current Driver:",
+        sheet["E29"]?.v,
+      );
 
-      PD: {
-        factor: getVal(`D${row}`),
-      },
+      // ============================================
+      // ROW MAP
+      // ============================================
 
-      COMP: {
-        factor: getVal(`K${row}`),
-      },
+      const rowMap = {
+        Base: 86,
+        Region: 87,
+        Profile: 88,
+        Household: 89,
+        "Policy class": 90,
+        "Model year": 91,
+        "ISO Factor": 92,
+        "Non-Owner / FR": 93,
+        "Limits / Deductible": 94,
+        Term: 95,
+        "Sum of Surcharges": 96,
+        "License Type Surcharge": 97,
+        "Business Use": 98,
+        "Violations Surcharge": 99,
+        "Learners Permit": 100,
+        "Unacceptable Risk Surcharge": 101,
+        "Vehicle Surcharge": 102,
+        "SUM OF DISCOUNTS-MAX CAP": 103,
+        "Sum of discounts": 104,
+        "Multi-Car Discount": 105,
+        "Prior Coverage Discount": 106,
+        "Renewal Discount": 107,
+        "Rollover Discount": 108,
+        "Defensive Driving Discount": 109,
+        "Drug/Alcohol Awareness Discount": 110,
+        "Vehicle Discount": 111,
+        "Anti-Theft Discount": 112,
+      };
 
-      COLL: {
-        factor: getVal(`L${row}`),
-      },
-    };
+      const row = rowMap[type];
 
-    console.log(`Fresh Rater Data (${type}) =>`, result);
+      if (!row) {
+        console.log(`No row mapping for ${type}`);
+
+        return null;
+      }
+
+      // ============================================
+      // SAFE VALUE
+      // ============================================
+
+      const getVal = (cell) => {
+        const value = sheet[cell]?.v;
+
+        if (value === undefined || value === null || value === "") {
+          return 0;
+        }
+
+        return Number(value);
+      };
+
+      const result = {
+        BI: {
+          factor: getVal(`C${row}`),
+        },
+
+        PD: {
+          factor: getVal(`D${row}`),
+        },
+
+        COMP: {
+          factor: getVal(`K${row}`),
+        },
+
+        COLL: {
+          factor: getVal(`L${row}`),
+        },
+      };
+
+      console.log(`Fresh Rater Data (${type}) =>`, result);
+
+      return result;
+    } catch (error) {
+      console.log("Error reading fresh rater data:", error.message);
+
+      return null;
+    }
+  }
+
+  console.log(`Unsupported State: ${state}`);
+
+  return null;
+}
+
+//===================================================
+//GET CALIFORNIA RATER DATA
+//===================================================
+
+export function getCaliforniaMappedRaterData(filePath, factorType) {
+  try {
+    const workbook = xlsx.readFile(filePath);
+
+    // ======================================
+    // FIND SHEET
+    // ======================================
+
+    let sheetName = null;
+
+    if (workbook.Sheets["OwnerRater"]) {
+      sheetName = "OwnerRater";
+    } else if (workbook.Sheets["NonOwnerRater"]) {
+      sheetName = "NonOwnerRater";
+    }
+
+    if (!sheetName) {
+      console.log("California Rater sheet missing");
+
+      return null;
+    }
+
+    console.log(`Using California Sheet: ${sheetName}`);
+
+    const sheet = workbook.Sheets[sheetName];
+
+    // ======================================
+    // SHEET TO JSON
+    // ======================================
+
+    const rows = xlsx.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: false,
+    });
+
+    // ======================================
+    // FIND FACTOR ROW
+    // ======================================
+
+    let factorRowIndex = -1;
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowText = String(rows[i][0] || "").trim();
+
+      if (rowText.toLowerCase().trim() === factorType.toLowerCase().trim()) {
+        factorRowIndex = i;
+        break;
+      }
+    }
+
+    if (factorRowIndex === -1) {
+      console.log(`Factor row not found -> ${factorType}`);
+
+      return null;
+    }
+
+    console.log(`Factor Row Found -> ${factorType} @ ${factorRowIndex}`);
+
+    // ======================================
+    // FIND COVERAGE HEADER ROW
+    // ======================================
+
+    let coverageRow = null;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      const rowText = row.join(" ");
+
+      // Must contain actual coverage headers
+      const validHeaders = [
+        "BI",
+        "PD",
+        "MEDPM",
+        "UMBI",
+        "UMPD",
+        "CDW",
+        "COMP",
+        "COLL",
+      ];
+
+      const matchedHeaders = validHeaders.filter((header) =>
+        row.includes(header),
+      );
+
+      if (matchedHeaders.length >= 5) {
+        coverageRow = row;
+
+        console.log(`Coverage Row Found @ ${i}`);
+
+        console.log("Coverage Row Identified");
+
+        break;
+      }
+    }
+
+    // ======================================
+    // FACTOR ROW
+    // ======================================
+
+    const factorRow = rows[factorRowIndex];
+
+    if (!coverageRow || !factorRow) {
+      console.log("Coverage row or factor row missing");
+
+      return null;
+    }
+    const result = {};
+
+    // ======================================
+    // READ COVERAGES
+    // ======================================
+
+    const validCoverages = [
+      "BI",
+      "PD",
+      "MEDPAY",
+      "MEDPM",
+      "UMBI",
+      "UMPD",
+      "CDW",
+      "COMP",
+      "COLL",
+    ];
+
+    for (let c = 1; c < coverageRow.length; c++) {
+      const coverage = String(coverageRow[c] || "")
+        .trim()
+        .replace("MEDPM", "MEDPAY")
+        .replace("CDW", "COLDW");
+
+      if (!validCoverages.includes(coverage)) {
+        continue;
+      }
+
+      const rawValue = factorRow[c];
+
+      if (
+        rawValue === undefined ||
+        rawValue === null ||
+        rawValue === "" ||
+        rawValue === "—"
+      ) {
+        continue;
+      }
+
+      const value = parseFloat(String(rawValue).replace(/,/g, ""));
+
+      if (isNaN(value)) {
+        continue;
+      }
+
+      result[coverage] = {
+        factor: value,
+      };
+
+      console.log(`Rater -> ${factorType} | ${coverage} = ${value}`);
+    }
 
     return result;
   } catch (error) {
-    console.log("Error reading fresh rater data:", error.message);
+    console.log("California parser error:", error.message);
 
     return null;
   }
 }
-
 // =====================================================
-// CREATE TEMP RATER FILE : Additional 
+// CREATE TEMP RATER FILE : Additional
 // =====================================================
 
-export function createTempRaterFile(
-  originalFile,
-  index,
-) {
+export function createTempRaterFile(originalFile, index) {
   const dir = path.dirname(originalFile);
 
   const ext = path.extname(originalFile);
 
   const base = path.basename(originalFile, ext);
 
-  const tempFile = path.join(
-    dir,
-    `${base}_${index}${ext}`,
-  );
+  const tempFile = path.join(dir, `${base}_${index}${ext}`);
 
   fs.copyFileSync(originalFile, tempFile);
 

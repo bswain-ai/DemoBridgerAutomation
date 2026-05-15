@@ -43,19 +43,46 @@ export class UwTraceHelper {
   }
 
   // ================= OPEN VIEW TRACE =================
-  async openViewPriceTrace() {
+  async openViewPriceTrace(state) {
     await this.safeClick(
       this.page.locator(locators.viewPriceTraceBtn),
       "View Price Trace",
     );
 
-    await this.page.waitForTimeout(2000);
+    // Wait for modal to load
+    await this.page.waitForTimeout(4000);
 
-    return await this.captureAllTraceValues();
+    console.log(`Current State Inside Helper: ${state}`);
+
+    // =========================================
+    // TEXAS TRACE
+    // =========================================
+
+    if (state === "TX" || state === "Texas") {
+      console.log("Using Texas Trace Parser");
+
+      return await this.captureTexasTraceValues();
+    }
+
+    // =========================================
+    // CALIFORNIA TRACE
+    // =========================================
+
+    if (state === "CA" || state === "California") {
+      console.log("Using California Trace Parser");
+
+      return await this.captureCaliforniaTraceValues();
+    }
+
+    // =========================================
+    // UNSUPPORTED STATE
+    // =========================================
+
+    throw new Error(`Unsupported State: ${state}`);
   }
 
   // ================= CAPTURE FULL PRICE TRACE =================
-  async captureAllTraceValues() {
+  async captureTexasTraceValues() {
     console.log("Capturing Selected Price Trace Values...");
 
     try {
@@ -180,7 +207,10 @@ export class UwTraceHelper {
           // ============================================
 
           const row = section
-            .locator(`tr:has(td:has-text("${label}"))`)
+            .locator("tr")
+            .filter({
+              has: this.page.locator(`td:text-is("${label}")`),
+            })
             .first();
 
           if (!(await row.count())) {
@@ -452,6 +482,225 @@ export class UwTraceHelper {
       console.log(`Vehicle Selected: ${vehicleNo}`);
     } catch (error) {
       console.log("Error selecting vehicle:", error.message);
+    }
+  }
+
+  // ==========================================
+  // For California Tracer
+  // ==========================================
+
+  async captureCaliforniaTraceValues() {
+    console.log("Capturing California Trace...");
+
+    try {
+      const result = {};
+
+      // ======================================
+      // CALIFORNIA LABELS
+      // ======================================
+
+      const labels = [
+        "Frequency factor",
+        "Severity Factor",
+        "Driving Record Points Factor",
+        "Driver Class Factor",
+        "Driver Experience",
+        "Increased Limit/Deductible Factor",
+        "Symbol Factor",
+        "BI/PD Model Year Factor",
+        "Policy Term Factor",
+        "Vehicle Factor",
+        "Mature Driver Improvement Course Discount",
+        "Youthful Driver Training Discount",
+        "Good Student Discount",
+        "Renewal Discount",
+        "Deductible Discount Endorsement Factor",
+        "Business Use Surcharge",
+        "Mileage Surcharge",
+        "Salvaged vehicle surcharge",
+        "Good Driver Discount",
+        "Subtotal 1",
+        "Subtotal 2",
+        "Subtotal 3",
+        "Subtotal 4",
+        "Subtotal 5",
+        "Subtotal 6",
+        "Total",
+      ];
+
+      // ======================================
+      // CALIFORNIA HEADERS
+      // ======================================
+
+      const headers = [
+        "BI",
+        "PD",
+        "MEDPAY",
+        "UMBI",
+        "UMPD",
+        "COLDW",
+        "COMP",
+        "COLL",
+      ];
+
+      // ======================================
+      // GET ALL TRACE TABLES
+      // ======================================
+
+      const tables = this.page.locator(
+        "table:has-text('MEDPAY'):has-text('COMP'):has-text('COLL')",
+      );
+
+      const tableCount = await tables.count();
+
+      console.log(`California Trace Tables: ${tableCount}`);
+
+      // ======================================
+      // LOOP TABLES
+      // ======================================
+
+      for (let t = 0; t < tableCount; t++) {
+        const section = tables.nth(t);
+
+        let driverName = `Driver_${t + 1}`;
+        let vehicleName = `Vehicle_${t + 1}`;
+
+        try {
+          const headerText = await section.locator("tr").nth(0).innerText();
+
+          const lines = headerText
+            .split("\n")
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+          if (lines.length >= 2) {
+            driverName = lines[0];
+            vehicleName = lines[1];
+          }
+        } catch {
+          console.log("Unable to capture CA driver/vehicle");
+        }
+
+        console.log(`\n========================`);
+        console.log(`Driver : ${driverName}`);
+        console.log(`Vehicle: ${vehicleName}`);
+        console.log(`========================`);
+
+        if (!result[driverName]) {
+          result[driverName] = {};
+        }
+
+        result[driverName][vehicleName] = {};
+
+        // ======================================
+        // PROCESS LABELS
+        // ======================================
+
+        for (const label of labels) {
+          console.log(`\nProcessing: ${label}`);
+
+          result[driverName][vehicleName][label] = {};
+
+          // ==================================
+          // FIND ROW
+          // ==================================
+
+          const row = section
+            .locator(`tr`)
+            .filter({
+              has: this.page.locator(`td:text-is("${label}")`),
+            })
+            .first();
+
+          if (!(await row.count())) {
+            console.log(`Row not found: ${label}`);
+
+            continue;
+          }
+
+          // ==================================
+          // COVERAGE LOOP
+          // ==================================
+
+          for (let col = 2; col <= 9; col++) {
+            const coverage = headers[col - 2];
+
+            const cell = row.locator(`td:nth-child(${col})`);
+
+            if (!(await cell.count())) continue;
+
+            let rawText = (await cell.innerText())?.trim();
+
+            if (!rawText || rawText === "-") {
+              continue;
+            }
+
+            const lines = rawText
+              .split("\n")
+              .map((x) => x.trim())
+              .filter(Boolean);
+
+            let factor = null;
+            let calc = null;
+
+            // ==============================
+            // FACTOR
+            // ==============================
+
+            if (lines.length >= 1) {
+              const val = lines[0].match(/[\d,.]+/);
+
+              if (val) {
+                factor = Number(val[0].replace(/,/g, ""));
+              }
+            }
+
+            // ==============================
+            // CALC
+            // ==============================
+
+            if (lines.length >= 2) {
+              const val = lines[1].match(/[\d,.]+/);
+
+              if (val) {
+                calc = Number(val[0].replace(/,/g, ""));
+              }
+            }
+
+            // ==============================
+            // STORE
+            // ==============================
+
+            result[driverName][vehicleName][label][coverage] = {
+              factor,
+              calc,
+              raw: rawText,
+            };
+
+            console.log(
+              `➡️ ${label} | ${coverage} | Factor=${factor} | Calc=${calc}`,
+            );
+          }
+
+          // ==================================
+          // REMOVE EMPTY LABEL
+          // ==================================
+
+          if (
+            Object.keys(result[driverName][vehicleName][label]).length === 0
+          ) {
+            delete result[driverName][vehicleName][label];
+          }
+        }
+      }
+
+      console.log("California Trace Capture Completed");
+
+      return result;
+    } catch (error) {
+      console.log("Error capturing California trace:", error.message);
+
+      return null;
     }
   }
 }

@@ -50,15 +50,38 @@ export class PaymentNavigator {
   async completePaymentSigning(policyData) {
     console.log("Completing Payment Signing...");
 
-    await this.page.locator(locators.officeEsign).click({ timeout: 50000 });
+    await this.page.locator(locators.officeEsign).click({
+      timeout: 50000,
+    });
 
-    await this.page
-      .locator(locators.checkNumberTextBox)
-      .fill(policyData.ChkNumber.toString());
+    // Fill Check Number only for 6 months term
+    if (String(policyData["Term Length"]).trim() === "6") {
+      console.log("6 Month Policy - Filling Check Number");
 
-    await this.page
-      .locator(locators.producerOnlyChkBox)
-      .click({ timeout: 50000 });
+      await this.page.locator(locators.checkNumberTextBox).waitFor({
+        state: "visible",
+        timeout: 50000,
+      });
+
+      await this.page
+        .locator(locators.checkNumberTextBox)
+        .fill(String(policyData.ChkNumber));
+    } else {
+      console.log("12 Month Policy - Skipping Check Number");
+    }
+
+    const producerChkBox = this.page.locator(locators.producerOnlyChkBox);
+
+    await producerChkBox.waitFor({
+      state: "visible",
+      timeout: 50000,
+    });
+
+    await producerChkBox.scrollIntoViewIfNeeded();
+
+    if (!(await producerChkBox.isChecked())) {
+      await producerChkBox.check({ force: true });
+    }
 
     await this.page.locator(locators.nextButton).click({ timeout: 50000 });
   }
