@@ -146,6 +146,8 @@ export const locators = {
   // ============================== Payment Option Details ==============================
 
   paymentOptions: `//h5[normalize-space()='Payment Options']`,
+  paymentOptionCheckbox: (paymentType) =>
+  `//td[div[text()='${paymentType}']]/preceding-sibling::td//input`,  
   compText: `//td[text()='Other than Collision']`,
   collText: `//td[text()='Collision']`,
   pipText: `//td[text()='PIP']`,

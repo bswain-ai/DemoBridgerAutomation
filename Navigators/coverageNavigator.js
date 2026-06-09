@@ -72,7 +72,7 @@ export class CoverageNavigator {
   async applySimpleCoverages(policyData) {
     const coverageMap = this.getCoverageMap();
 
-    // ✅ State from Excel
+    //  State from Excel
     const STATE = policyData["State"]?.toUpperCase();
     console.log("State from Excel:", STATE);
 
@@ -84,7 +84,7 @@ export class CoverageNavigator {
       await this.toggleIfNeeded(coverage.locator, value);
 
       // ==========================================
-      // ✅ MedPay Limit Logic (FIXED)
+      // MedPay Limit Logic
       // ==========================================
       if (coverage.key === "MedPay Selection" && value) {
         if (STATE === "TEXAS") {

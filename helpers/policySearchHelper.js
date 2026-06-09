@@ -13,6 +13,7 @@ export async function searchPolicy(page, policyNumber) {
 
   // Clear existing value properly
   await searchBox.click();
+  await searchBox.click();
   await searchBox.fill("");
 
   // Type like real user

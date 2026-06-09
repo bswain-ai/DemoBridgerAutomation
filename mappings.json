@@ -1,19 +1,19 @@
 [
     {
-        "vehicle":  "2",
-        "driver":  "4"
-    },
-    {
-        "vehicle":  "4",
-        "driver":  "5"
-    },
-    {
         "vehicle":  "1",
         "driver":  "2"
     },
     {
-        "vehicle":  "3",
-        "driver":  "1"
+        "vehicle":  "—",
+        "driver":  "—"
+    },
+    {
+        "vehicle":  "—",
+        "driver":  "—"
+    },
+    {
+        "vehicle":  "—",
+        "driver":  "—"
     },
     {
         "vehicle":  "—",

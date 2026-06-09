@@ -9,6 +9,29 @@ export class PaymentNavigator {
   }
 
   // ====================================
+  // Select Payment Option
+  // ====================================
+  async selectPaymentOption(policyData) {
+    const paymentOption = String(
+      policyData.PAYMENTOPTIONS || policyData["PAYMENT OPTIONS"] || "",
+    ).trim();
+
+    console.log(`Selecting Payment Option: ${paymentOption}`);
+
+    const checkbox = this.page.locator(
+      locators.paymentOptionCheckbox(paymentOption),
+    );
+
+    await checkbox.waitFor({
+      state: "visible",
+      timeout: 50000,
+    });
+
+    await checkbox.click({ force: true });
+
+    console.log(`Selected Payment Option: ${paymentOption}`);
+  }
+  // ====================================
   // Validate Eligibility (with retry)
   // ====================================
   async handleValidateEligibility() {
@@ -54,9 +77,14 @@ export class PaymentNavigator {
       timeout: 50000,
     });
 
-    // Fill Check Number only for 6 months term
-    if (String(policyData["Term Length"]).trim() === "6") {
-      console.log("6 Month Policy - Filling Check Number");
+    // Get Payment Option from Excel
+    const paymentOption = String(
+      policyData.PAYMENTOPTIONS || policyData["PAYMENT OPTIONS"] || "",
+    ).trim();
+
+    // Fill Check Number only for Pay in Full
+    if (paymentOption === "Pay in Full") {
+      console.log(`Payment Option = ${paymentOption} - Filling Check Number`);
 
       await this.page.locator(locators.checkNumberTextBox).waitFor({
         state: "visible",
@@ -67,7 +95,9 @@ export class PaymentNavigator {
         .locator(locators.checkNumberTextBox)
         .fill(String(policyData.ChkNumber));
     } else {
-      console.log("12 Month Policy - Skipping Check Number");
+      console.log(
+        `Payment Option = ${paymentOption} - Check Number not required`,
+      );
     }
 
     const producerChkBox = this.page.locator(locators.producerOnlyChkBox);
@@ -83,6 +113,8 @@ export class PaymentNavigator {
       await producerChkBox.check({ force: true });
     }
 
-    await this.page.locator(locators.nextButton).click({ timeout: 50000 });
+    await this.page.locator(locators.nextButton).click({
+      timeout: 50000,
+    });
   }
 }
