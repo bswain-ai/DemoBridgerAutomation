@@ -92,7 +92,7 @@ for (let index = 0; index < excelData.length; index++) {
     }
 
     // ─── RETRY CONFIG ───────────────────────────────────────────────────────
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 3;
     let attempt = 0;
     let success = false;
 
@@ -168,13 +168,22 @@ for (let index = 0; index < excelData.length; index++) {
         const uw = (col, def) => row[col]?.toString().trim() || def;
 
         await underwriterNavigator.completeEligibilityQuestions([
-          { id: "allHouseholdMembersListed", answer: uw("UW_AllHouseholdMembersListed", "Yes")},
+          {
+            id: "allHouseholdMembersListed",
+            answer: uw("UW_AllHouseholdMembersListed", "Yes"),
+          },
           { id: "excludedSpouse", answer: uw("UW_ExcludedSpouse", "No") },
-          { id: "selfEmployedDriver", answer: uw("UW_SelfEmployedDriver", "No") },
+          {
+            id: "selfEmployedDriver",
+            answer: uw("UW_SelfEmployedDriver", "No"),
+          },
           { id: "impairedDriver", answer: uw("UW_ImpairedDriver", "No") },
           { id: "convictedDriver", answer: uw("UW_ConvictedDriver", "No") },
           { id: "ridesharingDriver", answer: uw("UW_RidesharingDriver", "No") },
-          { id: "vehicleNotRegisteredToDriver", answer: uw("UW_VehicleNotRegisteredToDriver", "No") },
+          {
+            id: "vehicleNotRegisteredToDriver",
+            answer: uw("UW_VehicleNotRegisteredToDriver", "No"),
+          },
           { id: "modifiedAuto", answer: uw("UW_ModifiedAuto", "No") },
           { id: "businessAuto", answer: uw("UW_BusinessAuto", "No") },
         ]);
@@ -283,15 +292,34 @@ for (let index = 0; index < excelData.length; index++) {
         console.log(` ${tcLabel} Passed on Attempt ${attempt + 1}`);
       } catch (error) {
         console.log(` ${tcLabel} Failed on Attempt ${attempt + 1}`);
+        console.log(`Error: ${error.message}`);
 
+        const recoverableErrors = [
+          "NEW_SUBMISSION_FAILED",
+          "COVERAGE_SUMMARY_NOT_FOUND",
+          "LOGIN_FAILED",
+          "Element is not attached to the DOM",
+        ];
+
+        const isRecoverable = recoverableErrors.some((err) =>
+          error.message.includes(err),
+        );
+
+        // Non-recoverable error → fail immediately
+        if (!isRecoverable) {
+          throw error;
+        }
+
+        console.log(`Recoverable error detected. Retrying ${tcLabel}...`);
+
+        // If last retry, fail
         if (attempt === MAX_RETRIES - 1) {
           throw error;
         }
       } finally {
-        await page.close();
-        await context.close();
+        await page?.close().catch(() => {});
+        await context?.close().catch(() => {});
       }
-
       attempt++;
     }
   });

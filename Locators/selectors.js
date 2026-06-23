@@ -147,7 +147,7 @@ export const locators = {
 
   paymentOptions: `//h5[normalize-space()='Payment Options']`,
   paymentOptionCheckbox: (paymentType) =>
-  `//td[div[text()='${paymentType}']]/preceding-sibling::td//input`,  
+    `//td[div[text()='${paymentType}']]/preceding-sibling::td//input`,
   compText: `//td[text()='Other than Collision']`,
   collText: `//td[text()='Collision']`,
   pipText: `//td[text()='PIP']`,
@@ -174,17 +174,27 @@ export const locators = {
   reviewedCoverages: `//div[span[contains(text(),'Please')]]/div/div[2]//input`,
   confirmedESignature: `//div[span[contains(text(),'Please')]]/div/div[3]//input`,
   eSignatureCheckbox: `//div[span[contains(text(),'Please')]]/div/div[4]//input`,
+  vehicleReleaseCheckbox: `//span[contains(text(),'By')]/preceding-sibling::span/input`,
   marketingConsentCheckbox: `//span[contains(text(),'I, ')]/preceding-sibling::span/input`,
   electronicDeliveryCheckbox: `//span[strong[contains(text(),'Electronic')]]/preceding-sibling::span/input`,
   fullLegalName: (placeholder) => `//input[@placeholder='${placeholder}']`,
   fullLegalNamePlaceholder: `//div[span[contains(text(),'Full Legal Name')]]//input[@placeholder]`,
   producerFullLegalNamePlaceholder: `//div[span[contains(text(),'Legal')]]//input`,
+  allFullLegalNameFields: `//input[@placeholder]`,
+  eDeliveryNameField: `//input[contains(@aria-label,'e-delivery')]`,
+  vehicleReleaseNameField: `//input[contains(@aria-label,'vehicle release')]`,
+  consolidatedDisclosureNameField: `//span[contains(text(),'Full Legal Name')]/following::input[1]`,
   selectAllCheckbox: `//label[span[contains(text(),'Select All')]]//input[@type='checkbox']`,
   caaSection: `//span[contains(text(),'APP-1:')]`,
-  pipWaiverAgreement: `//div[h5[text()='PIP Waiver']]/div[1]//input`,
-  umuimWaiverAgreement : `//div[h5[contains(text(),'UM/UIM Waiver')]]/div[1]//input`,
-  returnToProducer: `//button[contains(text(),'Return')]`,
-  agentAgreementCheckbox: `//span[contains(text(),'By clicking')]/preceding-sibling::span/input`,
+  pipWaiverAgreement:
+    "//h5[contains(.,'PIP Waiver')]/following::input[@type='checkbox'][1]",
+  pipWaiverNameField: `//input[contains(@aria-label,'PIP Waiver')]`,
+  umuimWaiverNameField: "//input[contains(@aria-label,'UM/UIM Waiver')]",
+  umuimWaiverAgreement:
+    "//h5[contains(.,'UM/UIM Waiver')]/following::input[@type='checkbox'][1]",
+  coverageWaiverHeader: `//h6[contains(.,'Coverage Waivers')]`,
+  returnToProducer: `//button[contains(.,'Return')]`,
+  agentAgreementCheckbox: `//span[contains(text(),'By clicking')]/preceding-sibling::span/span/input`,
   PurchasePolicyBtn: `button[type='button']:has-text("Purchase Policy")`,
 
   // ===============================  Success Page After Policy Creation  ================================

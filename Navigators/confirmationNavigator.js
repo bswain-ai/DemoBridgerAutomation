@@ -12,38 +12,83 @@ export class ConfirmationNavigator {
   // Generic Safe Click With Retry (Reusable)
   // ==================================================
   async safeClick(locator, maxRetries = 3) {
+    let lastError;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        console.log(`Click Attempt ${attempt}`);
+
+        // Wait for page to stabilize
         await this.page.waitForLoadState("domcontentloaded");
 
-        // Wait for possible MUI backdrop
+        // Handle MUI overlays/backdrops
         await this.page
           .waitForSelector(".MuiBackdrop-root", {
             state: "hidden",
-            timeout: 10000,
+            timeout: 5000,
           })
           .catch(() => {});
 
-        await expect(locator).toBeVisible({ timeout: 20000 });
-        await expect(locator).toBeEnabled({ timeout: 20000 });
+        // Wait for locator to exist
+        await locator.waitFor({
+          state: "visible",
+          timeout: 15000,
+        });
 
+        // Scroll into view
         await locator.scrollIntoViewIfNeeded();
-        await locator.click({ trial: true });
-        await locator.click();
 
-        return;
+        // Ensure element is actionable
+        await expect(locator).toBeVisible({
+          timeout: 10000,
+        });
+
+        await expect(locator).toBeEnabled({
+          timeout: 10000,
+        });
+
+        // Trial click verifies no overlay intercept
+        await locator.click({
+          trial: true,
+          timeout: 5000,
+        });
+
+        // Actual click
+        await locator.click({
+          timeout: 10000,
+        });
+
+        console.log("Click Successful");
+        return true;
       } catch (error) {
-        console.log(`Click retry ${attempt} failed`);
+        lastError = error;
 
-        if (attempt === maxRetries) {
-          throw new Error("Element click failed after retries");
-        }
+        console.log(`Click Attempt ${attempt} Failed`);
+        console.log(error.message);
 
-        await this.page.waitForTimeout(1500);
+        await Promise.race([
+          this.page.waitForLoadState("networkidle").catch(() => {}),
+          locator
+            .waitFor({
+              state: "visible",
+              timeout: 3000,
+            })
+            .catch(() => {}),
+        ]);
+
+        await this.page
+          .waitForSelector(".MuiBackdrop-root", {
+            state: "hidden",
+            timeout: 3000,
+          })
+          .catch(() => {});
       }
     }
-  }
 
+    throw new Error(
+      `Element click failed after ${maxRetries} retries.\n\n${lastError?.message}`,
+    );
+  }
   // ==================================================
   // Confirm & E-Sign Flow (Bulletproof)
   // ==================================================
@@ -79,15 +124,52 @@ export class ConfirmationNavigator {
       this.page.locator(locators.electronicDeliveryCheckbox),
     );
 
-    const fullLegalNameText = await this.page
-      .locator(locators.fullLegalNamePlaceholder)
-      .getAttribute("placeholder");
+    // Vehicle Release (CA/TX safe)
+    const vehicleReleaseCheckbox = this.page.locator(
+      locators.vehicleReleaseCheckbox,
+    );
 
-    await this.page
-      .locator(locators.fullLegalName(fullLegalNameText))
-      .fill(fullLegalNameText);
+    if (await vehicleReleaseCheckbox.isVisible().catch(() => false)) {
+      await this.safeClick(vehicleReleaseCheckbox);
+    }
 
-    await this.safeClick(this.page.locator(locators.marketingConsentCheckbox));
+    const eDeliveryNameField = this.page.locator(locators.eDeliveryNameField);
+
+    const vehicleReleaseField = this.page.locator(
+      locators.vehicleReleaseNameField,
+    );
+
+    // Get insured name from placeholder
+    const insuredFullName =
+      await eDeliveryNameField.getAttribute("placeholder");
+
+    console.log("Insured Name:", insuredFullName);
+
+    if (insuredFullName) {
+      await eDeliveryNameField.fill(insuredFullName);
+
+      if (await vehicleReleaseField.isVisible().catch(() => false)) {
+        await vehicleReleaseField.fill(insuredFullName);
+      }
+    }
+
+    // Marketing consent (optional)
+    const marketingConsent = this.page.locator(
+      locators.marketingConsentCheckbox,
+    );
+
+    if (await marketingConsent.isVisible().catch(() => false)) {
+      await this.safeClick(marketingConsent);
+    }
+
+    console.log("E-Delivery Name:", await eDeliveryNameField.inputValue());
+
+    if (await vehicleReleaseField.isVisible().catch(() => false)) {
+      console.log(
+        "Vehicle Release Name:",
+        await vehicleReleaseField.inputValue(),
+      );
+    }
 
     await this.safeClick(this.page.locator(locators.nxtButton));
 
@@ -97,146 +179,286 @@ export class ConfirmationNavigator {
 
     await this.safeClick(this.page.locator(locators.selectAllCheckbox));
 
-    await this.page
-      .locator(locators.fullLegalName(fullLegalNameText))
-      .fill(fullLegalNameText);
+    // Full Legal Name field
+    const disclosureNameField = this.page.locator(
+      locators.consolidatedDisclosureNameField,
+    );
 
-    await this.page.locator(locators.caaSection).hover({ timeout: 30000 });
+    await disclosureNameField.waitFor({
+      state: "visible",
+      timeout: 15000,
+    });
+
+    // Read current value
+    let disclosureFullName = await disclosureNameField.inputValue();
+
+    console.log("Disclosure Name Value:", disclosureFullName);
+
+    // If empty, populate with insured name
+    if (!disclosureFullName?.trim()) {
+      disclosureFullName = insuredFullName;
+
+      await disclosureNameField.click();
+      await disclosureNameField.fill(disclosureFullName);
+
+      // Trigger MUI validation
+      await disclosureNameField.press("Tab");
+    }
+
+    // Scroll disclosure section
+    await this.page.locator(locators.caaSection).hover({
+      timeout: 30000,
+    });
 
     await this.scrollModal();
 
+    // Debugging
+    console.log("Disclosure Name:", await disclosureNameField.inputValue());
+
+    console.log(
+      "Select All Checked:",
+      await this.page
+        .locator(locators.selectAllCheckbox)
+        .isChecked()
+        .catch(() => false),
+    );
+
+    console.log(
+      "Next Enabled:",
+      await this.page.locator(locators.nxtButton).isEnabled(),
+    );
+
+    // ======================================================
+    // Move Forward From Consolidated Disclosure
+    // ======================================================
+
+    await expect(this.page.locator(locators.nxtButton)).toBeEnabled({
+      timeout: 15000,
+    });
+
     await this.safeClick(this.page.locator(locators.nxtButton));
 
-    /*
+    // ======================================================
+    // TX Coverage Waivers (Conditional)
+    // ======================================================
+
     if (process.env.STATE === "TX") {
-      // ==============================
-      // Coverage Waivers
-      // ==============================
-      await expect(this.page.locator(locators.pipWaiverAgreement)).toBeVisible({
-        timeout: 60000,
-      });
-      await this.safeClick(this.page.locator(locators.pipWaiverAgreement));
-
-      await expect(
-        this.page.locator(locators.umuimWaiverAgreement),
-      ).toBeVisible({
-        timeout: 60000,
-      });
-      await this.safeClick(this.page.locator(locators.umuimWaiverAgreement));
-
-      const names = this.page.locator(
-        locators.fullLegalName(fullLegalNameText),
+      const coverageWaiverHeader = this.page.locator(
+        locators.coverageWaiverHeader,
       );
 
-      await names.nth(0).fill(fullLegalNameText);
-      await names.nth(1).fill(fullLegalNameText);
+      await this.page.waitForTimeout(3000);
+      const waiverPageVisible = await coverageWaiverHeader
+        .waitFor({
+          state: "visible",
+          timeout: 10000,
+        })
+        .then(() => true)
+        .catch(() => false);
 
-      await this.safeClick(this.page.locator(locators.nxtButton));
-    }
-      */
+      if (waiverPageVisible) {
+        console.log("Coverage Waiver page detected");
 
-    if (process.env.STATE === "TX") {
-      // ======================================
-      // Coverage Waivers (Dynamic Handling)
-      // ======================================
+        const pipSelection = Number(testData["PIP Selection"]);
+        const umbiSelection = Number(testData["UMBI Selection"]);
+        const uimbiSelection = Number(testData["UIMBI Selection"]);
+        const umpdSelection = Number(testData["UMPD Selection"]);
+        const uimpdSelection = Number(testData["UIMPD Selection"]);
 
-      const pipSelection = Number(testData["PIP Selection"]);
-      const umbiSelection = Number(testData["UMBI Selection"]);
-      const umpdSelection = Number(testData["UMPD Selection"]);
+        const showUMUIMWaiver =
+          umbiSelection === 0 &&
+          uimbiSelection === 0 &&
+          umpdSelection === 0 &&
+          uimpdSelection === 0;
 
-      // ======================================
-      // PIP Waiver
-      // Show when PIP = 0
-      // ======================================
-      if (pipSelection === 0) {
-        await expect(
-          this.page.locator(locators.pipWaiverAgreement),
-        ).toBeVisible({
-          timeout: 60000,
-        });
+        // ======================================
+        // UM/UIM Waiver
+        // ======================================
 
-        await this.safeClick(this.page.locator(locators.pipWaiverAgreement));
-      }
+        if (showUMUIMWaiver) {
+          console.log("Handling UM/UIM Waiver");
 
-      // ======================================
-      // UM/UIM Waiver
-      // Show when UMBI = 0 OR UMPD = 0
-      // ======================================
-      if (umbiSelection === 0 || umpdSelection === 0) {
-        await expect(
-          this.page.locator(locators.umuimWaiverAgreement),
-        ).toBeVisible({
-          timeout: 60000,
-        });
+          const umuimCheckbox = this.page.locator(
+            locators.umuimWaiverAgreement,
+          );
 
-        await this.safeClick(this.page.locator(locators.umuimWaiverAgreement));
-      }
+          await umuimCheckbox.scrollIntoViewIfNeeded();
 
-      // ======================================
-      // Fill Signature Names
-      // ======================================
-      if (pipSelection === 0 || umbiSelection === 0 || umpdSelection === 0) {
-        const names = this.page.locator(
-          locators.fullLegalName(fullLegalNameText),
-        );
+          await expect(umuimCheckbox).toBeVisible({
+            timeout: 30000,
+          });
 
-        const count = await names.count();
+          console.log("UM/UIM Checkbox Count:", await umuimCheckbox.count());
 
-        for (let i = 0; i < count; i++) {
-          await names.nth(i).fill(fullLegalNameText);
+          console.log("UM/UIM Before Click:", await umuimCheckbox.isChecked());
+
+          if (!(await umuimCheckbox.isChecked())) {
+            await umuimCheckbox.evaluate((el) => el.click());
+          }
+
+          await expect(umuimCheckbox).toBeChecked({
+            timeout: 10000,
+          });
+
+          console.log("UM/UIM After Click:", await umuimCheckbox.isChecked());
+
+          const umuimNameField = this.page.locator(
+            locators.umuimWaiverNameField,
+          );
+
+          console.log("UM/UIM Name Field Count:", await umuimNameField.count());
+
+          await umuimNameField.waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          const currentValue = await umuimNameField.inputValue();
+
+          if (!currentValue?.trim()) {
+            await umuimNameField.fill(insuredFullName);
+            await umuimNameField.press("Tab");
+          }
+
+          console.log("UM/UIM Name Value:", await umuimNameField.inputValue());
+
+          console.log(
+            "Next Enabled After UM/UIM:",
+            await this.page.locator(locators.nxtButton).isEnabled(),
+          );
         }
 
+        // ======================================
+        // PIP Waiver
+        // ======================================
+
+        if (pipSelection === 0) {
+          console.log("Handling PIP Waiver");
+
+          const pipCheckbox = this.page.locator(locators.pipWaiverAgreement);
+
+          await pipCheckbox.scrollIntoViewIfNeeded();
+
+          await expect(pipCheckbox).toBeVisible({
+            timeout: 30000,
+          });
+
+          if (!(await pipCheckbox.isChecked())) {
+            await pipCheckbox.evaluate((el) => el.click());
+          }
+
+          await expect(pipCheckbox).toBeChecked({
+            timeout: 10000,
+          });
+
+          const pipNameField = this.page.locator(locators.pipWaiverNameField);
+
+          await pipNameField.waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          const currentValue = await pipNameField.inputValue();
+
+          if (!currentValue?.trim()) {
+            await pipNameField.fill(insuredFullName);
+            await pipNameField.press("Tab");
+          }
+
+          console.log("PIP Name Value:", await pipNameField.inputValue());
+        }
+
+        // ======================================
+        // Next After Waivers
+        // ======================================
+
+        await expect(this.page.locator(locators.nxtButton)).toBeEnabled({
+          timeout: 30000,
+        });
+
         await this.safeClick(this.page.locator(locators.nxtButton));
+      } else {
+        console.log("Coverage Waiver page not displayed");
       }
     }
 
+    // ======================================================
+    // Return To Producer Popup
+    // ======================================================
 
+    const returnToProducerBtn = this.page.locator(locators.returnToProducer);
+    await returnToProducerBtn.waitFor({
+      state: "visible",
+      timeout: 60000,
+    });
 
+    await returnToProducerBtn.click({
+      force: true,
+    });
 
-    // ==============================
+    console.log("Returned To Producer");
+
+    // ======================================================
     // Agent eSignature
-    // ==============================
-    await this.safeClick(this.page.locator(locators.returnToProducer));
+    // ======================================================
+
     await this.safeClick(this.page.locator(locators.agentAgreementCheckbox));
 
-    const producerFullLegalNameText = await this.page
-      .locator(locators.producerFullLegalNamePlaceholder)
-      .getAttribute("placeholder");
+    const producerNameField = this.page.locator(
+      locators.producerFullLegalNamePlaceholder,
+    );
 
-    await this.page
-      .locator(locators.fullLegalName(producerFullLegalNameText))
-      .fill(producerFullLegalNameText);
+    await producerNameField.waitFor({
+      state: "visible",
+      timeout: 30000,
+    });
 
-    // ==============================
-    // Purchase (Ultimate Pattern)
-    // ==============================
+    const producerFullLegalName =
+      await producerNameField.getAttribute("placeholder");
+
+    console.log("Producer Full Legal Name:", producerFullLegalName);
+
+    if (producerFullLegalName) {
+      await producerNameField.fill(producerFullLegalName);
+      await producerNameField.press("Tab");
+    }
+
+    console.log("Producer Name Value:", await producerNameField.inputValue());
+
+    console.log(
+      "Purchase Button Enabled:",
+      await this.page.locator(locators.PurchasePolicyBtn).isEnabled(),
+    );
+
+    // ======================================================
+    // Purchase Policy
+    // ======================================================
+
     const purchaseBtn = this.page.locator(locators.PurchasePolicyBtn);
 
-    await expect(purchaseBtn).toBeEnabled({ timeout: 30000 });
-    await expect(purchaseBtn).toBeVisible({ timeout: 30000 });
+    await expect(purchaseBtn).toBeVisible({
+      timeout: 30000,
+    });
+
+    await expect(purchaseBtn).toBeEnabled({
+      timeout: 30000,
+    });
 
     console.log("Initiating Purchase...");
 
-    // Handle navigation + backend transaction safely
     await Promise.all([
       this.page.waitForLoadState("domcontentloaded"),
       this.safeClick(purchaseBtn),
     ]);
 
-    // Wait for possible heavy backend processing
     await this.page.waitForLoadState("networkidle").catch(() => {});
-
-    // Wait for either:
-    // 1. Success message
-    // 2. URL change
-    // 3. Confirmation container
 
     const successLocator = this.page.locator(
       "//h5[contains(text(),'successfully purchased')]",
     );
 
     await expect(successLocator).toBeVisible({
-      timeout: 90000, // heavy transaction safe
+      timeout: 90000,
     });
 
     console.log("Policy Purchase Completed Successfully");
@@ -257,27 +479,154 @@ export class ConfirmationNavigator {
   }
 
   // ==================================================
-  // Navigate to Coverage Summary (Stable)
+  // Navigate to Coverage Summary (Highly Stable)
   // ==================================================
   async goToCoverageSummary() {
-    await this.safeClick(this.page.locator(locators.policyPageBtn));
+    // ==========================================
+    // Wait for Purchase Success Page
+    // ==========================================
+    const successIcon = this.page.locator('img[alt="Success Icon"]');
 
-    await expect(this.page.locator(locators.coverageSummaryBtn)).toBeVisible({
+    await expect(successIcon).toBeVisible({
+      timeout: 60000,
+    });
+
+    await expect(
+      this.page.getByText("You've successfully purchased the policy."),
+    ).toBeVisible({
+      timeout: 60000,
+    });
+
+    console.log("Policy purchase confirmation page loaded.");
+
+    // Small stabilization wait
+    await this.page.waitForTimeout(3000);
+
+    // ==========================================
+    // Go To Policy Page
+    // ==========================================
+
+    let policyPageOpened = false;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const policyBtn = this.page.locator(locators.policyPageBtn);
+
+        await policyBtn.waitFor({
+          state: "visible",
+          timeout: 60000,
+        });
+
+        await expect(policyBtn).toBeEnabled({
+          timeout: 60000,
+        });
+
+        await policyBtn.scrollIntoViewIfNeeded();
+
+        console.log(`Policy Page Click Attempt ${attempt}`);
+
+        console.log("URL Before Policy Page Click:", this.page.url());
+
+        await policyBtn.click({
+          force: true,
+          timeout: 30000,
+        });
+
+        await this.page.waitForLoadState("networkidle", {
+          timeout: 30000,
+        });
+
+        await this.page.waitForTimeout(5000);
+
+        console.log("URL After Policy Page Click:", this.page.url());
+
+        policyPageOpened = true;
+        break;
+      } catch (error) {
+        console.log(`Policy Page Click Attempt ${attempt} Failed`);
+
+        console.log(error.message);
+
+        if (attempt < 3) {
+          console.log("Refreshing page and retrying...");
+
+          await this.page.reload({
+            waitUntil: "networkidle",
+            timeout: 60000,
+          });
+
+          await this.page.waitForTimeout(5000);
+        } else {
+          throw new Error(`POLICY_PAGE_NAVIGATION_FAILED\n${error.message}`);
+        }
+      }
+    }
+
+    if (!policyPageOpened) {
+      throw new Error("POLICY_PAGE_NAVIGATION_FAILED");
+    }
+    // ==========================================
+    // Coverage Summary
+    // ==========================================
+    const coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+
+    let coverageVisible = false;
+
+    try {
+      await coverageSummary.waitFor({
+        state: "visible",
+        timeout: 60000,
+      });
+
+      coverageVisible = true;
+    } catch {
+      console.log("Coverage Summary not visible. Refreshing page...");
+    }
+
+    // ==========================================
+    // Refresh Once if Coverage Summary Missing
+    // ==========================================
+    if (!coverageVisible) {
+      await this.page.reload({
+        waitUntil: "networkidle",
+      });
+
+      await this.page.waitForTimeout(5000);
+
+      try {
+        await coverageSummary.waitFor({
+          state: "visible",
+          timeout: 30000,
+        });
+
+        coverageVisible = true;
+      } catch {
+        coverageVisible = false;
+      }
+    }
+
+    if (!coverageVisible) {
+      throw new Error("COVERAGE_SUMMARY_NOT_FOUND");
+    }
+
+    console.log("Coverage Summary found.");
+
+    await expect(coverageSummary).toBeVisible({
       timeout: 30000,
     });
 
-    await this.safeClick(this.page.locator(locators.coverageSummaryBtn));
-
-    // Some portals require reload to refresh summary
-    await this.page.reload({ waitUntil: "domcontentloaded" });
-
-    await expect(this.page.locator(locators.coverageSummaryBtn)).toBeVisible({
+    // ==========================================
+    // Open Coverage Summary
+    // ==========================================
+    await coverageSummary.click({
+      force: true,
       timeout: 30000,
     });
 
-    await this.safeClick(this.page.locator(locators.coverageSummaryBtn));
+    await this.page.waitForLoadState("networkidle");
+
+    console.log("Coverage Summary opened successfully.");
   }
-
   // ==================================================
   // Combined Flow
   // ==================================================

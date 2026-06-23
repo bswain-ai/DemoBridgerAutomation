@@ -176,52 +176,23 @@ test("Underwriter validation for failed policies", async ({ page }) => {
         // ======================================
 
         for (const [index, map] of mappings.entries()) {
-          try {
-            console.log(`\n==============================`);
+          let tempRaterFile = null;
 
+          try {
             console.log(`Processing Mapping ${index + 1}`);
 
-            console.log(`Vehicle: ${map.vehicle} Driver: ${map.driver}`);
-
-            // ==================================
-            // CREATE TEMP FILE
-            // ==================================
-
-            const tempRaterFile = createTempRaterFile(raterFile, index + 1);
-
-            console.log("Using Temp File:", tempRaterFile);
-
-            // ==================================
-            // APPLY RATE MAPPING
-            // ==================================
+            tempRaterFile = createTempRaterFile(raterFile, index + 1);
 
             applyRateMapping(tempRaterFile, map.vehicle, map.driver);
 
-            // ==================================
-            // SET CURRENT RATER FILE
-            // ==================================
-
             global.currentRaterFile = tempRaterFile;
-
-            // ==================================
-            // GET MATCHING UI SECTION
-            // ==================================
 
             const uiSection = uiSections[index];
 
             if (!uiSection) {
               console.log("No matching UI section");
-
               continue;
             }
-
-            console.log(
-              `Comparing UI Section -> Driver: ${uiSection.driverName}, Vehicle: ${uiSection.vehicleName}`,
-            );
-
-            // ==================================
-            // FILTER TRACE DATA
-            // ==================================
 
             const filteredTraceData = {
               [uiSection.driverName]: {
@@ -230,49 +201,36 @@ test("Underwriter validation for failed policies", async ({ page }) => {
               },
             };
 
-            // ==================================
-            // BUILD COMPARISON
-            // ==================================
-
             const comparisonJSON = buildComparisonJSON(
               policy.policyNumber,
               filteredTraceData,
             );
 
-            // ==================================
-            // GET MISMATCHES
-            // ==================================
-
             const mismatches = getMismatches(comparisonJSON);
-
-            console.log("Mismatch Count:", mismatches.length);
 
             if (mismatches.length > 0) {
               allMismatches.push(...mismatches);
-
-              console.log(`${mismatches.length} mismatches found`);
-            } else {
-              console.log("No mismatches found");
-            }
-
-            // ==================================
-            // CLEANUP TEMP FILE
-            // ==================================
-
-            try {
-              if (fs.existsSync(tempRaterFile)) {
-                fs.unlinkSync(tempRaterFile);
-
-                console.log(`Temp File Deleted: ${tempRaterFile}`);
-              }
-            } catch (cleanupError) {
-              console.log("Temp file cleanup failed:", cleanupError.message);
             }
           } catch (mappingError) {
             console.log(
               `Error processing mapping ${index + 1}:`,
               mappingError.message,
             );
+          } finally {
+            // ==================================
+            // ALWAYS CLEANUP TEMP FILE
+            // ==================================
+            
+            try {
+              if (tempRaterFile && fs.existsSync(tempRaterFile)) {
+                fs.unlinkSync(tempRaterFile);
+
+                console.log(`Temp File Deleted: ${tempRaterFile}`);
+              }
+            } catch (cleanupError) {
+              console.log(`Temp File Cleanup Failed: ${cleanupError.message}`);
+            }
+              
           }
         }
       }

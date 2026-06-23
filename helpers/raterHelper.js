@@ -464,12 +464,19 @@ export function getDynamicDriverVehicleMappings(raterFile) {
     }
 
     mappings.push({
-      vehicle: String(vehicle).trim(),
-      driver: String(driver).trim(),
+      vehicle: Number(vehicle),
+      driver: Number(driver),
     });
   }
 
-  console.log("Dynamic Mappings:", mappings);
+  // Original Mapping
+  console.log("Original RateOrder Mapping:");
+
+  mappings.forEach((m, index) => {
+    console.log(
+      `Mapping ${index + 1}: Vehicle ${m.vehicle} -> Driver ${m.driver}`,
+    );
+  });
 
   return mappings;
 }

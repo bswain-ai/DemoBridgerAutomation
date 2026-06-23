@@ -64,7 +64,10 @@ export class NameInsuredNavigator {
 
         console.log(`Retry ${attempt} failed: ${error.message}`);
 
-        // Extra wait before retry
+        if (this.page.isClosed()) {
+          throw error;
+        }
+
         await this.page.waitForTimeout(2000);
       }
     }
@@ -221,10 +224,17 @@ export class NameInsuredNavigator {
     // Wait for the contact details page to fully load before expecting fields.
     // Without this, the cell phone input may not yet be in the DOM after the
     // modal/continue transition, causing a 50s timeout.
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("domcontentloaded");
 
-    await expect(this.page.locator(locators.cellPhone)).toBeVisible({
-      timeout: 50000,
+    const cellPhone = this.page.locator(locators.cellPhone);
+
+    await cellPhone.waitFor({
+      state: "attached",
+      timeout: 60000,
+    });
+
+    await expect(cellPhone).toBeVisible({
+      timeout: 60000,
     });
 
     await this.page.fill(locators.cellPhone, phone);

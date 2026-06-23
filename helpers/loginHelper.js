@@ -18,65 +18,60 @@ export async function login(page, role = "agent") {
     console.log(`Login Attempt ${attempt + 1}`);
 
     try {
-      // ================= GO TO BASE URL =================
-      await page.goto(credentials.baseUrl, { waitUntil: "networkidle" });
+      // Always start fresh
+      await page.goto(credentials.baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
 
-      // ================= PORTAL CLICK =================
-      if (role === "agent") {
-        const agentBtn = page.locator(locators.agentPortal);
+      await page.waitForLoadState("networkidle");
 
-        await expect(agentBtn).toBeVisible({ timeout: 20000 });
-        await agentBtn.click();
-      } else {
-        const uwBtn = page.locator(locators.underwriterPortal);
-        await expect(uwBtn).toBeVisible({ timeout: 20000 });
-        await uwBtn.click();
-      }
+      // Portal selection
+      const portalBtn =
+        role === "agent"
+          ? page.locator(locators.agentPortal)
+          : page.locator(locators.underwriterPortal);
 
-      // ================= WAIT LOGIN FORM =================
+      await portalBtn.waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
+
+      await portalBtn.click();
+
+      // Login form
       const userInput = page.locator(locators.userNameLoc);
+      const passInput = page.locator(locators.passwordLoc);
 
-      try {
-        await userInput.waitFor({ state: "visible", timeout: 10000 });
-      } catch {
-        console.log("Login page not loaded correctly. Reloading...");
+      await userInput.waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
 
-        await page.goto(credentials.baseUrl, { waitUntil: "networkidle" });
-
-        const agentBtn = page.locator(locators.agentPortal);
-        await expect(agentBtn).toBeVisible({ timeout: 20000 });
-        await agentBtn.click();
-
-        await userInput.waitFor({ state: "visible", timeout: 20000 });
-      }
-
-      // ================= ENTER USERNAME =================
-      await userInput.clear();
+      await userInput.fill("");
       await userInput.fill(user.username);
 
-      // ================= ENTER PASSWORD =================
-      const passInput = page.locator(locators.passwordLoc);
-      await passInput.clear();
+      await passInput.fill("");
       await passInput.fill(user.password);
 
-      // ================= SUBMIT =================
       await page.locator(locators.submitButton).click();
 
-      // ================= SUCCESS CHECK =================
       await expect(page.locator(locators.bridgerLogo)).toBeVisible({
-        timeout: 20000,
+        timeout: 30000,
       });
 
       console.log(`${role.toUpperCase()} login successful`);
       return;
     } catch (error) {
-      console.log("Login failed, retrying...");
+      console.log(`Login Attempt ${attempt + 1} failed: ${error.message}`);
 
       if (attempt === 2) {
-        throw new Error(`Login failed after 3 attempts for ${role}`);
+        throw new Error("LOGIN_FAILED");
       }
 
-      await page.waitForTimeout(3000);
+      await page.context().clearCookies();
+
+      await page.waitForTimeout(5000);
     }
   }
 }
