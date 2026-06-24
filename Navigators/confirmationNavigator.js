@@ -499,8 +499,23 @@ export class ConfirmationNavigator {
 
     console.log("Policy purchase confirmation page loaded.");
 
-    // Small stabilization wait
     await this.page.waitForTimeout(3000);
+
+    // ==========================================
+    // Wait For MUI Backdrop / Loader
+    // ==========================================
+    try {
+      const backdrop = this.page.locator(".MuiBackdrop-root");
+
+      if ((await backdrop.count()) > 0) {
+        await backdrop.last().waitFor({
+          state: "hidden",
+          timeout: 15000,
+        });
+      }
+    } catch {
+      console.log("No active backdrop found.");
+    }
 
     // ==========================================
     // Go To Policy Page
@@ -510,6 +525,8 @@ export class ConfirmationNavigator {
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        console.log(`Policy Page Click Attempt ${attempt}`);
+
         const policyBtn = this.page.locator(locators.policyPageBtn);
 
         await policyBtn.waitFor({
@@ -518,42 +535,55 @@ export class ConfirmationNavigator {
         });
 
         await expect(policyBtn).toBeEnabled({
-          timeout: 60000,
+          timeout: 30000,
         });
 
         await policyBtn.scrollIntoViewIfNeeded();
 
-        console.log(`Policy Page Click Attempt ${attempt}`);
+        const beforeUrl = this.page.url();
 
-        console.log("URL Before Policy Page Click:", this.page.url());
+        console.log("URL Before Click:", beforeUrl);
 
-        await policyBtn.click({
-          force: true,
-          timeout: 30000,
-        });
+        console.log("Button Count:", await policyBtn.count());
+        console.log("Visible:", await policyBtn.isVisible());
+        console.log("Enabled:", await policyBtn.isEnabled());
 
-        await this.page.waitForLoadState("networkidle", {
-          timeout: 30000,
-        });
+        // Native DOM click (works better with MUI buttons)
+        await policyBtn.evaluate((el) => el.click());
+
+        console.log("Policy Page button clicked");
+
+        // Wait for URL change
+        await this.page.waitForFunction(
+          (oldUrl) => window.location.href !== oldUrl,
+          beforeUrl,
+          {
+            timeout: 60000,
+          },
+        );
+
+        console.log("Navigation detected");
 
         await this.page.waitForTimeout(5000);
 
-        console.log("URL After Policy Page Click:", this.page.url());
+        const afterUrl = this.page.url();
+
+        console.log("URL After Click:", afterUrl);
 
         policyPageOpened = true;
         break;
       } catch (error) {
-        console.log(`Policy Page Click Attempt ${attempt} Failed`);
+        console.log(
+          `Policy Page Click Attempt ${attempt} Failed: ${error.message}`,
+        );
 
-        console.log(error.message);
+        await this.page.screenshot({
+          path: `PolicyPage_Attempt_${attempt}.png`,
+          fullPage: true,
+        });
 
         if (attempt < 3) {
-          console.log("Refreshing page and retrying...");
-
-          await this.page.reload({
-            waitUntil: "networkidle",
-            timeout: 60000,
-          });
+          console.log("Retrying...");
 
           await this.page.waitForTimeout(5000);
         } else {
@@ -565,6 +595,7 @@ export class ConfirmationNavigator {
     if (!policyPageOpened) {
       throw new Error("POLICY_PAGE_NAVIGATION_FAILED");
     }
+
     // ==========================================
     // Coverage Summary
     // ==========================================
@@ -580,15 +611,18 @@ export class ConfirmationNavigator {
 
       coverageVisible = true;
     } catch {
-      console.log("Coverage Summary not visible. Refreshing page...");
+      console.log(
+        "Coverage Summary not visible after navigation. Reloading...",
+      );
     }
 
     // ==========================================
-    // Refresh Once if Coverage Summary Missing
+    // Reload Once If Coverage Summary Missing
     // ==========================================
     if (!coverageVisible) {
       await this.page.reload({
         waitUntil: "networkidle",
+        timeout: 60000,
       });
 
       await this.page.waitForTimeout(5000);
@@ -606,27 +640,33 @@ export class ConfirmationNavigator {
     }
 
     if (!coverageVisible) {
+      await this.page.screenshot({
+        path: `CoverageSummary_NotFound_${Date.now()}.png`,
+        fullPage: true,
+      });
+
       throw new Error("COVERAGE_SUMMARY_NOT_FOUND");
     }
 
     console.log("Coverage Summary found.");
 
+    await coverageSummary.scrollIntoViewIfNeeded();
+
     await expect(coverageSummary).toBeVisible({
       timeout: 30000,
     });
 
-    // ==========================================
-    // Open Coverage Summary
-    // ==========================================
     await coverageSummary.click({
-      force: true,
       timeout: 30000,
     });
 
-    await this.page.waitForLoadState("networkidle");
+    await this.page.waitForLoadState("networkidle", {
+      timeout: 60000,
+    });
 
     console.log("Coverage Summary opened successfully.");
   }
+
   // ==================================================
   // Combined Flow
   // ==================================================
