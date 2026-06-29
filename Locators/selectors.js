@@ -87,6 +87,16 @@ export const locators = {
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
   driverExperience: `#driver_experience`,
   // ============================== Violation Details =============================
+  hasViolationYesRadio: '[data-test="f_has_violations_true"]',
+  hasViolationNoRadio: '[data-test="f_has_violations_false"]',
+  addViolationBtn: '[data-test="add-violation-button"]',
+  violationDriverDropdown: '[data-test="f_selected_driver_index"]',
+  violationIncidentCodeDropdown: '[data-test="f_driver_incident_code"]',
+  selectViolationIncidentCode: (code) =>
+    `//ul[@id='driver_incident_code-listbox']//li[normalize-space()='${code}']`,
+  violationDate: '[data-test="f_driver_violation_date"]',
+  convictionDate: '[data-test="f_driver_conviction_date"]',
+  violationSaveBtn: '[data-test="violation-drawer-submit"]',
 
   // =========================================  Coverage Details  ===============================
   coveragePage: `//h5[normalize-space()='Coverages']`,
@@ -155,6 +165,8 @@ export const locators = {
   proceedQuoteBtn: `//button[@type='button'][normalize-space()='Proceed to Quote']`,
   disabledProceedBtn: `//button[@data-test='refresh-price-btn']/following-sibling::span/button[@disabled]`,
   validateEligibilityBtn: `//button[@type='submit']`,
+  mvrReportCompletePopup: "//h5[normalize-space()='MVR Report Complete']",
+  mvrContinueButton: "[data-test='premium-update-modal-confirm-purchase-btn']",
 
   //=================== UnderWriter Details ======================================
   uwQueryPage: `//h5[normalize-space()='Underwriting/Eligibility Questions']`,

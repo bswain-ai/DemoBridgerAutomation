@@ -100,6 +100,7 @@ export class PaymentNavigator {
       );
     }
 
+    // Producer Checkbox
     const producerChkBox = this.page.locator(locators.producerOnlyChkBox);
 
     await producerChkBox.waitFor({
@@ -113,8 +114,50 @@ export class PaymentNavigator {
       await producerChkBox.check({ force: true });
     }
 
+    console.log("Producer checkbox checked.");
+
+    // ====================================
+    // Click Run Reports (Next)
+    // ====================================
     await this.page.locator(locators.nextButton).click({
       timeout: 50000,
     });
+
+    console.log("Clicked Run Reports button.");
+
+    // Give UI time to trigger the MVR request
+    await this.page.waitForLoadState("networkidle");
+
+    // ====================================
+    // Handle MVR Report Complete Popup
+    // ====================================
+    const mvrPopup = this.page.locator(locators.mvrReportCompletePopup);
+    const continueBtn = this.page.locator(locators.mvrContinueButton);
+
+    try {
+      await mvrPopup.waitFor({
+        state: "visible",
+        timeout: 60000,
+      });
+
+      console.log("MVR Report Complete popup displayed.");
+
+      await continueBtn.waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
+
+      await continueBtn.click({
+        timeout: 30000,
+      });
+
+      console.log("Clicked Continue button on MVR popup.");
+    } catch (error) {
+      console.log(
+        "MVR Report Complete popup did not appear. Continuing execution.",
+      );
+    }
+
+    console.log("Payment Signing completed.");
   }
 }

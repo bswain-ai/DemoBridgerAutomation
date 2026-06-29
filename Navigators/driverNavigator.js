@@ -114,10 +114,10 @@ export class DriverNavigator {
       .waitFor({ state: "hidden", timeout: 10000 });
 
     // ─── NEXT BUTTON (LAST DRIVER ONLY) ───────────────────────────────────
-    if (driverIndex === totalDrivers - 1) {
-      await this.page.locator(locators.nextButton).click({ timeout: 10000 });
-      await this.page.locator(locators.nextButton).click({ timeout: 10000 });
-    }
+    // if (driverIndex === totalDrivers - 1) {
+    //   await this.page.locator(locators.nextButton).click({ timeout: 10000 });
+    //   await this.page.locator(locators.nextButton).click({ timeout: 10000 });
+    // }
   }
 
   // ────────────────────────────────────────────────────────────────────────

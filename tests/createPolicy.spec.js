@@ -18,6 +18,7 @@ import { CoverageNavigator } from "../Navigators/coverageNavigator.js";
 import { UnderwriterNavigator } from "../Navigators/underwriterNavigator.js";
 import { PaymentNavigator } from "../Navigators/paymentNavigator.js";
 import { ConfirmationNavigator } from "../Navigators/confirmationNavigator.js";
+import { PolicyEffectiveDateNavigator } from "../Navigators/policyEffectiveDateNavigator.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILE PATHS
@@ -113,6 +114,7 @@ for (let index = 0; index < excelData.length; index++) {
         const driverNavigator = new DriverNavigator(page, row["State"]);
 
         const violationsNavigator = new ViolationsNavigator(page);
+        const policyEffectiveDateNavigator = new PolicyEffectiveDateNavigator(page);
         const coverageNavigator = new CoverageNavigator(page);
         const underwriterNavigator = new UnderwriterNavigator(page);
         const paymentNavigator = new PaymentNavigator(page);
@@ -158,7 +160,8 @@ for (let index = 0; index < excelData.length; index++) {
           );
         }
 
-        await violationsNavigator.withoutViolation();
+        await violationsNavigator.completeViolations(row);
+        await policyEffectiveDateNavigator.continueToCoverage();
         await coverageNavigator.applyCoverages(row);
 
         // ─── UNDERWRITING ───────────────────────────────────────────────────

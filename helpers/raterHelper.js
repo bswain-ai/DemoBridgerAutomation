@@ -234,13 +234,38 @@ export function buildRaterData(row) {
       drivingExp: toNum(g(`D${n} Driving Exp`)),
       age55OrOlder: toNum(g(`D${n} 55Plus Driver`)),
       goodStudent: toNum(g(`D${n} GoodStudent Discount`)),
-      youthfulDriver: toNum(g(`D${n} Youthful`)), // ✅ FIXED
-      defensiveDriver: toNum(g(`D${n} Defensive Driver`)),
-      drugDiscount: toNum(g(`D${n} Drug Discount`)),
+      youthfulDriver: toNum(g(`D${n} Youthful`)),
+      defensiveDriver:
+        policy.state?.toUpperCase() === "TX" ||
+        policy.state?.toUpperCase() === "TEXAS"
+          ? toNum(g(`D${n} Defensive Driver`))
+          : 0,
+
+      drugDiscount:
+        policy.state?.toUpperCase() === "TX" ||
+        policy.state?.toUpperCase() === "TEXAS"
+          ? toNum(g(`D${n} Drug Discount`))
+          : 0,
+
       occupation: g(`D${n} Occupation`),
-      majorViolations: toNum(g(`D${n} Major Violations`)),
-      minorViolations: toNum(g(`D${n} Minor Violations`)),
-      chargeableViolations: toNum(g(`D${n} Chargeable Viol.`)),
+
+      majorViolations:
+        policy.state?.toUpperCase() === "TX" ||
+        policy.state?.toUpperCase() === "TEXAS"
+          ? toNum(g(`D${n} Major Violations`))
+          : toNum(g(`D${n} Number of Major Violation (in last 36 months)`)),
+
+      minorViolations:
+        policy.state?.toUpperCase() === "TX" ||
+        policy.state?.toUpperCase() === "TEXAS"
+          ? toNum(g(`D${n} Minor Violations`))
+          : toNum(g(`D${n} Number of Minor Violation (in last 36 months)`)),
+
+      chargeableViolations:
+        policy.state?.toUpperCase() === "TX" ||
+        policy.state?.toUpperCase() === "TEXAS"
+          ? toNum(g(`D${n} Chargeable Viol.`))
+          : 0,
       // "Learner's Permit" has no dedicated D{n} column in the multi-template.
       // Defaults to 0. Add "D{n} Learner's Permit" to the template if this
       // surcharge needs to be covered by test cases in the future.
@@ -255,25 +280,26 @@ export function buildRaterData(row) {
       age55OrOlder: toNum(g(`D${n} 55Plus Driver`)),
       youthfulDriver: toNum(g(`D${n} Youthful`)),
       goodStudent: toNum(g(`D${n} GoodStudent Discount`)),
-      majorViolations: toNum(
-        g(`D${n} Number of Major Violation (in last 36 months)`),
-      ),
 
-      minorViolations: toNum(
-        g(`D${n} Number of Minor Violation (in last 36 months)`),
-      ),
+      chargeableAcc36:
+        policy.state?.toUpperCase() === "CA" ||
+        policy.state?.toUpperCase() === "CALIFORNIA"
+          ? toNum(g(`D${n} Number of Chargeable Accident (in last 36 months)`))
+          : 0,
 
-      chargeableAcc36: toNum(
-        g(`D${n} Number of Chargeable Accident (in last 36 months)`),
-      ),
+      chargeableAcc60:
+        policy.state?.toUpperCase() === "CA" ||
+        policy.state?.toUpperCase() === "CALIFORNIA"
+          ? toNum(
+              g(`D${n} Number of Chargeable Accident (in less than 60 months)`),
+            )
+          : 0,
 
-      chargeableAcc60: toNum(
-        g(`D${n} Number of Chargeable Accident (in less than 60 months)`),
-      ),
-
-      convictions60: toNum(
-        g(`D${n} Number of Convictions (in less than 60 months)`),
-      ),
+      convictions60:
+        policy.state?.toUpperCase() === "CA" ||
+        policy.state?.toUpperCase() === "CALIFORNIA"
+          ? toNum(g(`D${n} Number of Convictions (in less than 60 months)`))
+          : 0,
     });
   }
 
