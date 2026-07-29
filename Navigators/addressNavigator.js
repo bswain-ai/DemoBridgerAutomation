@@ -36,9 +36,6 @@ export class AddressNavigator {
       // Type address slowly to trigger autocomplete
       await streetInput.pressSequentially(street, { delay: 40 });
 
-      // Small wait for API suggestions
-      await this.page.waitForTimeout(1000);
-
       // Wait for dropdown container
       await this.page.waitForSelector("ul[role='listbox']", {
         timeout: 20000,

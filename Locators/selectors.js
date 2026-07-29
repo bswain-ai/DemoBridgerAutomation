@@ -86,7 +86,7 @@ export const locators = {
   driverSubmitBtn: `[data-test="driver-drawer-submit"]`,
   policyEffectiveDate: `//h5[normalize-space()='Policy Effective Date']`,
   driverExperience: `#driver_experience`,
-  // ============================== Violation Details =============================
+  // ============================== Violation Details ==========================
   hasViolationYesRadio: '[data-test="f_has_violations_true"]',
   hasViolationNoRadio: '[data-test="f_has_violations_false"]',
   addViolationBtn: '[data-test="add-violation-button"]',
@@ -98,36 +98,79 @@ export const locators = {
   convictionDate: '[data-test="f_driver_conviction_date"]',
   violationSaveBtn: '[data-test="violation-drawer-submit"]',
 
+  // ================= Final Details (Prior Coverage Details) ====================
+
+  // ---------------- Prior Coverage Selection ----------------
+  priorCoverageNo:
+    '[data-test="f_pol_auto_insurance_history_No prior insurance"]',
+
+  priorCoverageBridger:
+    '[data-test="f_pol_auto_insurance_history_Yes, with Bridger Insurance"]',
+
+  priorCoverageOther:
+    '[data-test="f_pol_auto_insurance_history_Yes, with other company"]',
+
+  // ---------------- Additional Notice Person ----------------
+  additionalNoticeYes: '[data-test="f_pol_has_ai_true"]',
+
+  additionalNoticeNo: '[data-test="f_pol_has_ai_false"]',
+
+  // Additional Notice Person Details
+  additionalPersonFirstName: '[data-test="f_pol_ai_first_name"]',
+
+  additionalPersonLastName: '[data-test="f_pol_ai_last_name"]',
+
+  // ---------------- Prior Coverage - Other Company ----------------
+
+  // Prior In Agency
+  priorInAgencyYes: '[data-test="f_pol_current_prior_in_agency_true"]',
+
+  priorInAgencyNo: '[data-test="f_pol_current_prior_in_agency_false"]',
+
+  // ---------------- Prior Coverage Details (Bridger / Other Company) ----------------
+
+  // Current Policy Number
+  priorCurrentPolicyNumber: '[data-test="f_pol_bridger_current_policy_number"]',
+
+  // Duration (Months)
+  priorCoverageDuration: '[data-test="f_pol_current_insurance_duration"]',
+
+  // Expiration Date
+  priorCoverageExpirationDate: '[data-test="f_pol_current_expiration_date"]',
+
+  // Current BI Limits
+  priorCurrentBILimits: '[data-test="f_pol_current_bi_limits"]',
+
   // =========================================  Coverage Details  ===============================
   coveragePage: `//h5[normalize-space()='Coverages']`,
   pipToggle:
-    '[data-test="coverage-item-switch-Personal Injury Protection (PIP)"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Personal Injury Protection (PIP)"]',
 
   medpayToggle:
-    '[data-test="coverage-item-switch-Medical Payments (MEDPAY)"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Medical Payments (MEDPAY)"]',
 
   medpayLimit: `[id="Medical Payments (MEDPAY)-limit"]`,
 
   umbiToggle:
-    '[data-test="coverage-item-switch-Uninsured Motorist Bodily Injury (UMBI)"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Uninsured Motorist Bodily Injury (UMBI)"]',
 
   umpdToggle:
-    '[data-test="coverage-item-switch-Uninsured Motorist Property Damage (UMPD)"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Uninsured Motorist Property Damage (UMPD)"]',
 
   motorclubToggle:
-    '[data-test="coverage-item-switch-Motorclub"] input[type="checkbox"]',
+    '[data-test="coverage-item-switch-Motorclub"]',
 
   compToggle: (v) =>
-    `[data-test="coverage-item-switch-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"] input[type="checkbox"]`,
+    `[data-test="coverage-item-switch-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"]`,
 
   collToggle: (v) =>
-    `[data-test="coverage-item-switch-Collision-${getIndex(v)}"] input[type="checkbox"]`,
+    `[data-test="coverage-item-switch-Collision-${getIndex(v)}"]`,
 
   rentalToggle: (v) =>
-    `[data-test="coverage-item-switch-Rental Reimbursement-${getIndex(v)}"] input[type="checkbox"]`,
+    `[data-test="coverage-item-switch-Rental Reimbursement-${getIndex(v)}"]`,
 
   roadsideToggle: (v) =>
-    `[data-test="coverage-item-switch-Roadside Assistance-${getIndex(v)}"] input[type="checkbox"]`,
+    `[data-test="coverage-item-switch-Roadside Assistance-${getIndex(v)}"]`,
 
   rrLimit: (v) =>
     `[data-test="coverage-item-limit-Rental Reimbursement-${getIndex(v)}"]`,
@@ -145,8 +188,8 @@ export const locators = {
   collDeductible: (v) =>
     `[data-test="coverage-item-deductible-Collision-${getIndex(v)}"]`,
 
-  cdwToggle: `[data-test="coverage-item-switch-CDW"] input[type="checkbox"]`,
-  tripleDedToggle: `[data-test="coverage-item-switch-Triple Deductible"] input[type="checkbox"]`,
+  cdwToggle: `[data-test="coverage-item-switch-CDW"]`,
+  tripleDedToggle: `[data-test="coverage-item-switch-Triple Deductible"]`,
 
   refreshPriceBtn: ` //button[normalize-space()='Refresh Price']`,
   compDeductibleOption: (value) => `li[role="option"] >> text="$${value}"`,
@@ -167,6 +210,10 @@ export const locators = {
   validateEligibilityBtn: `//button[@type='submit']`,
   mvrReportCompletePopup: "//h5[normalize-space()='MVR Report Complete']",
   mvrContinueButton: "[data-test='premium-update-modal-confirm-purchase-btn']",
+  // Vehicle Premium (All Vehicles)
+  vehicleCoveragePremiums: "//tr[td[@colspan='3']]/td[last()]",
+  // Quote Number (Before Policy Bind)
+  quoteNumber: "//span[contains(text(),'Quote No')]/following-sibling::span[1]",
 
   //=================== UnderWriter Details ======================================
   uwQueryPage: `//h5[normalize-space()='Underwriting/Eligibility Questions']`,
@@ -204,17 +251,41 @@ export const locators = {
   umuimWaiverNameField: "//input[contains(@aria-label,'UM/UIM Waiver')]",
   umuimWaiverAgreement:
     "//h5[contains(.,'UM/UIM Waiver')]/following::input[@type='checkbox'][1]",
+  // ======================================================
+  // CA Independent Disclosures
+  // ======================================================
+  businessUseHeader:
+    "//h5[contains(normalize-space(.),'Business Use Exclusion')]",
+  businessUseExclusionCheckbox:
+    "//h5[contains(normalize-space(.),'Business Use Exclusion')]/following::input[@type='checkbox'][1]",
+  businessUseExclusionNameField:
+    "//input[contains(@aria-label,'Business Use')]",
+  umbiWaiverHeader: "//h5[contains(normalize-space(.),'UMBI Waiver')]",
+  umbiWaiverAgreement:
+    "//h5[contains(normalize-space(.),'UMBI Waiver')]/following::input[@type='checkbox'][1]",
+  umbiWaiverNameField: "//input[contains(@aria-label,'UMBI Waiver')]",
+  umpdWaiverHeader: "//h5[contains(normalize-space(.),'UMPD Waiver')]",
+  umpdWaiverAgreement:
+    "//h5[contains(normalize-space(.),'UMPD Waiver')]/following::input[@type='checkbox'][1]",
+
+  umpdWaiverNameField: "//input[contains(@aria-label,'UMPD Waiver')]",
   coverageWaiverHeader: `//h6[contains(.,'Coverage Waivers')]`,
   returnToProducer: `//button[contains(.,'Return')]`,
   agentAgreementCheckbox: `//span[contains(text(),'By clicking')]/preceding-sibling::span/span/input`,
   PurchasePolicyBtn: `button[type='button']:has-text("Purchase Policy")`,
+  prodNamedInsured: `//*[@data-test="navigation-stepper-step-named-insured"]//p[2]`,
+  prodEffectiveDate:
+  '//span[normalize-space()="Effective Date"]/following-sibling::span[1]',
+  expirationDate:
+  '//span[normalize-space()="Expiration Date"]/following-sibling::span[1]',
+  selectedPaymentOption: `//tr[.//input[@type="checkbox" and @checked]]/td[2]`,
 
   // ===============================  Success Page After Policy Creation  ================================
   successPolicyMsg: `//h5[contains(text(),'successfully purchased the policy.')]`,
   policyNumber: `//div[span[text()='Policy Number']]/following-sibling::div/span`,
   insuredName: `//div[span[text()='Named Insured']]/following-sibling::div/span`,
   policyTerm: `//div[span[text()='Policy Term']]/following-sibling::div/span`,
-  paymentPlan: `//div[span[text()='Payment Plan']]/following-sibling::div/span`,
+  paymentPlan: `//div[span[text()='Payment Plan']]/following-sibling::div/span`,  
   totalPremium: `//div[span[text()='Premium Total']]/following-sibling::div/span`,
   policyPageBtn: `//button[@data-test='go-to-policy-page-btn']`,
 
@@ -252,6 +323,7 @@ export const locators = {
 
   searchTextBox: `//input[@placeholder='Search']`,
   searchPolicy: (policyNumber) => `//span[text()='Policy - ${policyNumber}']`,
+  priceTraceDialog: '[role="dialog"]',
   policyList: `[data-test="policyList"]`,
   underWritingBtn: `[data-test="sidebar-Underwriting Review-btn"]`,
   viewPriceTraceBtn: `//button/span[text()='View Price Trace']`,

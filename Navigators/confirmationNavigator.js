@@ -239,6 +239,163 @@ export class ConfirmationNavigator {
     await this.safeClick(this.page.locator(locators.nxtButton));
 
     // ======================================================
+    // CA Coverage Waivers
+    // ======================================================
+
+    if (process.env.STATE === "CA") {
+      const umbiSelection = Number(testData["UMBI Selection"]);
+      const umpdSelection = Number(testData["UMPD Selection"]);
+
+      console.log("========================================");
+      console.log("CA DISCLOSURES");
+      console.log("UMBI :", umbiSelection);
+      console.log("UMPD :", umpdSelection);
+      console.log("========================================");
+
+      // ======================================================
+      // Generic Function
+      // ======================================================
+
+      const completeDisclosure = async (
+        headerLocator,
+        checkboxLocator,
+        nameLocator,
+        sectionName,
+      ) => {
+        console.log(`========== ${sectionName} ==========`);
+
+        const header = this.page.locator(headerLocator);
+
+        await header.waitFor({
+          state: "visible",
+          timeout: 30000,
+        });
+
+        await header.scrollIntoViewIfNeeded();
+
+        //---------------------------------------
+        // Checkbox
+        //---------------------------------------
+
+        const checkbox = this.page.locator(checkboxLocator);
+
+        await checkbox.waitFor({
+          state: "attached",
+          timeout: 30000,
+        });
+
+        await checkbox.scrollIntoViewIfNeeded();
+
+        console.log("Checkbox Count :", await checkbox.count());
+        console.log("Visible :", await checkbox.isVisible());
+        console.log("Enabled :", await checkbox.isEnabled());
+        console.log("Checked Before :", await checkbox.isChecked());
+
+        if (!(await checkbox.isChecked())) {
+          try {
+            await checkbox.check({
+              force: true,
+            });
+          } catch {
+            try {
+              await checkbox.click({
+                force: true,
+              });
+            } catch {
+              await checkbox.evaluate((el) => el.click());
+            }
+          }
+        }
+
+        await expect(checkbox).toBeChecked();
+
+        console.log("Checked After :", await checkbox.isChecked());
+
+        //---------------------------------------
+        // Name
+        //---------------------------------------
+
+        const nameField = this.page.locator(nameLocator);
+
+        await nameField.waitFor({
+          state: "visible",
+          timeout: 30000,
+        });
+
+        await nameField.scrollIntoViewIfNeeded();
+
+        const existing = (await nameField.inputValue()).trim();
+
+        console.log("Existing :", existing);
+
+        if (existing !== insuredFullName) {
+          await nameField.click();
+
+          await nameField.press("Control+A");
+
+          await nameField.press("Delete");
+
+          await nameField.fill(insuredFullName);
+
+          await nameField.press("Tab");
+        }
+
+        await expect(nameField).toHaveValue(insuredFullName);
+
+        console.log("Final :", await nameField.inputValue());
+
+        await this.page.waitForTimeout(300);
+      };
+
+      // ======================================================
+      // Business Use (Always)
+      // ======================================================
+
+      await completeDisclosure(
+        locators.businessUseHeader,
+        locators.businessUseExclusionCheckbox,
+        locators.businessUseExclusionNameField,
+        "Business Use Exclusion",
+      );
+
+      // ======================================================
+      // UMBI Waiver
+      // ======================================================
+
+      if (umbiSelection === 0) {
+        await completeDisclosure(
+          locators.umbiWaiverHeader,
+          locators.umbiWaiverAgreement,
+          locators.umbiWaiverNameField,
+          "UMBI Waiver",
+        );
+      }
+
+      // ======================================================
+      // UMPD Waiver
+      // ======================================================
+
+      if (umbiSelection === 1 && umpdSelection === 0) {
+        await completeDisclosure(
+          locators.umpdWaiverHeader,
+          locators.umpdWaiverAgreement,
+          locators.umpdWaiverNameField,
+          "UMPD Waiver",
+        );
+      }
+
+      // ======================================================
+      // Next
+      // ======================================================
+
+      await expect(this.page.locator(locators.nxtButton)).toBeEnabled({
+        timeout: 30000,
+      });
+
+      await this.safeClick(this.page.locator(locators.nxtButton));
+    }
+    
+    // ======================================================
     // TX Coverage Waivers (Conditional)
     // ======================================================
 
@@ -247,7 +404,6 @@ export class ConfirmationNavigator {
         locators.coverageWaiverHeader,
       );
 
-      await this.page.waitForTimeout(3000);
       const waiverPageVisible = await coverageWaiverHeader
         .waitFor({
           state: "visible",
@@ -470,7 +626,6 @@ export class ConfirmationNavigator {
   async scrollModal() {
     for (let i = 0; i < 15; i++) {
       await this.page.mouse.wheel(0, 400);
-      await this.page.waitForTimeout(150);
     }
 
     await expect(
@@ -498,8 +653,6 @@ export class ConfirmationNavigator {
     });
 
     console.log("Policy purchase confirmation page loaded.");
-
-    await this.page.waitForTimeout(3000);
 
     // ==========================================
     // Wait For MUI Backdrop / Loader
@@ -564,8 +717,6 @@ export class ConfirmationNavigator {
 
         console.log("Navigation detected");
 
-        await this.page.waitForTimeout(5000);
-
         const afterUrl = this.page.url();
 
         console.log("URL After Click:", afterUrl);
@@ -584,8 +735,6 @@ export class ConfirmationNavigator {
 
         if (attempt < 3) {
           console.log("Retrying...");
-
-          await this.page.waitForTimeout(5000);
         } else {
           throw new Error(`POLICY_PAGE_NAVIGATION_FAILED\n${error.message}`);
         }
@@ -624,8 +773,6 @@ export class ConfirmationNavigator {
         waitUntil: "networkidle",
         timeout: 60000,
       });
-
-      await this.page.waitForTimeout(5000);
 
       try {
         await coverageSummary.waitFor({

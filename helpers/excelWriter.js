@@ -29,92 +29,152 @@ import { comparePolicy } from "../helpers/comparisonEngine.js";
  * @param {string} tcNo    - The test case number (e.g. "TC003") used to
  *                           locate or create the correct output row.
  */
+/**
+ * ============================================================
+ * Write / Update a Test Case Row in Excel
+ * ============================================================
+ *
+ * Behaviour:
+ * ----------
+ * 1. Reads the header row from the worksheet.
+ * 2. Maps rowData values according to the header order.
+ * 3. Checks whether the Test Case already exists.
+ *      - If YES → overwrite the existing row (retry support).
+ *      - If NO  → write to the fixed row based on TC number.
+ *
+ * Fixed Row Mapping:
+ * ------------------
+ * TC001 -> Excel Row 2
+ * TC002 -> Excel Row 3
+ * TC003 -> Excel Row 4
+ * TC004 -> Excel Row 5
+ * ...
+ *
+ * This guarantees that the output remains in the same order
+ * regardless of sequential or parallel execution.
+ * ============================================================
+ */
+
 export function writeRow(sheet, rowData, tcNo) {
+  // ==========================================================
+  // Validate Sheet
+  // ==========================================================
   if (!sheet["!ref"]) {
     throw new Error("Sheet has no headers defined.");
   }
 
+  // ==========================================================
+  // Read Worksheet Range
+  // ==========================================================
   const range = xlsx.utils.decode_range(sheet["!ref"]);
 
+  // ==========================================================
+  // Read Header Row (Excel Row 1)
+  // ==========================================================
   const headers = [];
 
   for (let col = range.s.c; col <= range.e.c; col++) {
-    const headerCell = xlsx.utils.encode_cell({ r: 0, c: col });
+    const cellAddress = xlsx.utils.encode_cell({
+      r: 0,
+      c: col,
+    });
 
-    const cell = sheet[headerCell];
+    const cell = sheet[cellAddress];
 
-    headers.push(cell ? cell.v : "");
+    headers.push(cell ? String(cell.v).trim() : "");
   }
 
+  // ==========================================================
+  // Build Row Values
+  // Keeps column order identical to Excel headers
+  // ==========================================================
   const rowValues = headers.map((header) => rowData[header] ?? "");
 
-  // Find which column contains the "TestCase No" header so we can search
-  // existing rows for a match. Normalise to lowercase with no spaces to
-  // handle minor header formatting differences (e.g. "TestCase No" vs
-  // "testcaseno") without breaking.
+  // ==========================================================
+  // Locate "TestCase No" Column
+  //
+  // We normalize the header text to avoid failures due to:
+  //   TestCase No
+  //   Test Case No
+  //   testcase no
+  // ==========================================================
   const tcColIndex = headers.findIndex(
-    (h) => h.toString().toLowerCase().replace(/\s/g, "") === "testcaseno",
+    (header) =>
+      header.toString().toLowerCase().replace(/\s/g, "") === "testcaseno",
   );
 
-  // Scan every existing data row (row 1 onwards; row 0 is the header) to
-  // find one already written for this TC number. Finding a match means this
-  // is a retry run — overwrite that row rather than appending a duplicate.
+  // ==========================================================
+  // Retry Support
+  //
+  // If this TC already exists in the sheet,
+  // overwrite the existing row instead of creating duplicates.
+  // ==========================================================
   let targetRow = null;
 
   if (tcColIndex !== -1) {
     for (let r = 1; r <= range.e.r; r++) {
-      const cell = sheet[xlsx.utils.encode_cell({ r, c: tcColIndex })];
-      if (cell && cell.v?.toString().trim() === tcNo.toString().trim()) {
+      const cellAddress = xlsx.utils.encode_cell({
+        r,
+        c: tcColIndex,
+      });
+
+      const cell = sheet[cellAddress];
+
+      if (cell && String(cell.v).trim() === String(tcNo).trim()) {
         targetRow = r;
         break;
       }
     }
   }
 
-  // No existing row found for this TC — append after the last written row.
+  // ==========================================================
+  // New Test Case
   //
-  // WHY THE BACKWARD SCAN: The output Excel template contains pre-formatted
-  // blank rows 2–8 (Excel). The xlsx !ref covers these rows, so range.e.r
-  // reflects the last blank row rather than the last row with actual data.
-  // Using `range.e.r + 1` directly caused TC001 to land on Excel row 9
-  // instead of row 2 — every subsequent TC was also offset by 7 rows.
+  // If this TC does not already exist,
+  // derive the Excel row from the TC number.
   //
-  // FIX: Scan backward from range.e.r to find the actual last populated row
-  // by checking column 0 (the TC_NO column — first column of every data row).
-  // If no data rows exist yet, lastDataRow stays 0 and targetRow becomes 1
-  // (0-indexed) = Excel row 2. This guarantees the first write always lands
-  // on the row immediately after the header regardless of how many blank
-  // template rows the sheet contains.
+  // Examples:
+  // TC001 -> Row Index 1 (Excel Row 2)
+  // TC002 -> Row Index 2 (Excel Row 3)
+  // TC010 -> Row Index 10 (Excel Row 11)
+  //
+  // This avoids row shifting during parallel execution.
+  // ==========================================================
   if (targetRow === null) {
-    let lastDataRow = 0;
-    for (let r = range.e.r; r >= 1; r--) {
-      const cell = sheet[xlsx.utils.encode_cell({ r, c: 0 })];
-      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== "") {
-        lastDataRow = r;
-        break;
-      }
+    const match = String(tcNo).match(/\d+/);
+
+    if (!match) {
+      throw new Error(`Invalid Test Case Number: ${tcNo}`);
     }
-    targetRow = lastDataRow + 1;
+
+    targetRow = Number(match[0]);
   }
 
+  console.log(`Writing ${tcNo} to Excel Row ${targetRow + 1}`);
+
+  // ==========================================================
+  // Write Cell Values
+  //
+  // Writes every value to its corresponding column.
+  // ==========================================================
   rowValues.forEach((value, colIndex) => {
     const cellAddress = xlsx.utils.encode_cell({
       r: targetRow,
       c: colIndex,
     });
 
-    let cellType = "s";
-
-    if (typeof value === "number") {
-      cellType = "n";
-    }
-
     sheet[cellAddress] = {
-      t: cellType,
+      t: typeof value === "number" ? "n" : "s",
       v: value,
     };
   });
 
+  // ==========================================================
+  // Update Worksheet Used Range
+  //
+  // Extend the worksheet range only if writing beyond the
+  // current last row.
+  // ==========================================================
   const newRange = xlsx.utils.decode_range(sheet["!ref"]);
 
   if (targetRow > newRange.e.r) {
@@ -122,6 +182,8 @@ export function writeRow(sheet, rowData, tcNo) {
   }
 
   sheet["!ref"] = xlsx.utils.encode_range(newRange);
+
+  console.log(`Updated Sheet Range : ${sheet["!ref"]}`);
 }
 
 /**

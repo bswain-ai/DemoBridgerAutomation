@@ -40,9 +40,6 @@ export class NameInsuredNavigator {
         // Scroll properly
         await element.scrollIntoViewIfNeeded();
 
-        // Ensure stable
-        await this.page.waitForTimeout(800);
-
         // Wait until clickable
         await expect(element).toBeEnabled();
 
@@ -67,8 +64,6 @@ export class NameInsuredNavigator {
         if (this.page.isClosed()) {
           throw error;
         }
-
-        await this.page.waitForTimeout(2000);
       }
     }
 

@@ -62,7 +62,6 @@ export class PaymentNavigator {
 
         await this.page.locator(locators.backBtn).click();
         await this.page.waitForLoadState("networkidle");
-        await this.page.waitForTimeout(2000);
       }
     }
   }

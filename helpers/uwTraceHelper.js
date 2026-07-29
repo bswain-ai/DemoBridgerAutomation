@@ -49,8 +49,16 @@ export class UwTraceHelper {
       "View Price Trace",
     );
 
-    // Wait for modal to load
-    await this.page.waitForTimeout(4000);
+    await this.page.locator(locators.priceTraceDialog).waitFor({
+      state: "visible",
+      timeout: 30000,
+    });
+
+    await expect(
+      this.page.locator('tr:has(td:text-is("Base"))').first(),
+    ).toBeVisible({
+      timeout: 30000,
+    });
 
     console.log(`Current State Inside Helper: ${state}`);
 
@@ -469,15 +477,11 @@ export class UwTraceHelper {
 
       await vehicleDropdown.click();
 
-      await this.page.waitForTimeout(1000);
-
       // =========================================
       // SELECT OPTION
       // =========================================
 
       await this.page.locator(`text="${vehicleNo}"`).last().click();
-
-      await this.page.waitForTimeout(3000);
 
       console.log(`Vehicle Selected: ${vehicleNo}`);
     } catch (error) {

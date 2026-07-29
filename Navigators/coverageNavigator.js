@@ -19,34 +19,47 @@ export class CoverageNavigator {
   }
 
   async toggleIfNeeded(locator, shouldEnable) {
-    const element = this.page.locator(locator).first();
+    const container = this.page.locator(locator).first();
 
-    // Check existence
-    if (!(await element.isVisible().catch(() => false))) {
-      console.log(`Coverage not present/visible → skipping: ${locator}`);
-      return;
+    if ((await container.count()) === 0) {
+      console.log(`Coverage not available -> ${locator}`);
+      return false;
     }
 
-    // Scroll into view
-    await element.scrollIntoViewIfNeeded();
+    await container.scrollIntoViewIfNeeded();
 
-    // Ensure element is stable
-    await element.waitFor({ state: "visible" });
+    const checkbox = container.locator('input[type="checkbox"]');
 
-    // Get current state
-    const isChecked = await element.isChecked().catch(() => false);
-
-    // Toggle only if needed
-    if (shouldEnable !== isChecked) {
-      await element.click({ force: true });
-
-      // Better than networkidle
-      await this.page.waitForTimeout(300);
-
-      console.log(`Toggled ${locator} → ${shouldEnable ? "ON" : "OFF"}`);
-    } else {
-      console.log(`No change needed for ${locator}`);
+    if ((await checkbox.count()) === 0) {
+      console.log(`Checkbox not found -> ${locator}`);
+      return false;
     }
+
+    const currentState = await checkbox.isChecked();
+
+    if (currentState === shouldEnable) {
+      console.log(`Already ${shouldEnable ? "ON" : "OFF"} -> ${locator}`);
+      return true;
+    }
+
+    for (let i = 0; i < 3; i++) {
+      await container.click({ force: true });
+
+      try {
+        await expect(checkbox).toBeChecked({
+          checked: shouldEnable,
+          timeout: 3000,
+        });
+
+        console.log(`Successfully toggled -> ${locator}`);
+        return true;
+      } catch {
+        console.log(`Retry ${i + 1}`);
+      }
+    }
+
+    console.log(`Failed to toggle -> ${locator}`);
+    return false;
   }
 
   // ==========================================
@@ -61,8 +74,6 @@ export class CoverageNavigator {
       { key: "CDW Selection", locator: locators.cdwToggle },
       { key: "Triple Deductible Selection", locator: locators.tripleDedToggle },
       { key: "Motorclub Selection", locator: locators.motorclubToggle },
-      { key: "RR Selection", locator: locators.rentalToggle },
-      { key: "RSA Selection", locator: locators.roadsideToggle },
     ];
   }
 
@@ -77,48 +88,91 @@ export class CoverageNavigator {
     console.log("State from Excel:", STATE);
 
     for (const coverage of coverageMap) {
+      // Skip PIP for California
+      if (STATE === "CALIFORNIA" && coverage.key === "PIP Selection") {
+        console.log("Skipping PIP for California");
+        continue;
+      }
+
       const rawValue = policyData[coverage.key];
+
+      // Skip if Excel column doesn't exist
+      if (rawValue === undefined || rawValue === "") {
+        console.log(`Skipping ${coverage.key} - No value`);
+        continue;
+      }
+
       const value = Number(rawValue) === 1;
 
       await waitFor(this.page);
+
       await this.toggleIfNeeded(coverage.locator, value);
 
-      // ==========================================
-      // MedPay Limit Logic
-      // ==========================================
-      if (coverage.key === "MedPay Selection" && value) {
-        if (STATE === "TEXAS") {
-          console.log("TX → Skipping MedPay Limit");
+      // =======================
+      // MEDPAY LIMIT
+      // =======================
+      if (
+        coverage.key === "MedPay Selection" &&
+        value &&
+        STATE === "CALIFORNIA"
+      ) {
+        const medpayContainer = this.page.locator(locators.medpayToggle);
+
+        if ((await medpayContainer.count()) === 0) {
+          console.log("MedPay coverage not available.");
           continue;
         }
 
-        if (STATE === "CALIFORNIA") {
-          const medpayLimit = policyData["MedPay Limit"];
+        const medpayCheckbox = medpayContainer.locator(
+          'input[type="checkbox"]',
+        );
 
-          if (!medpayLimit) {
-            console.log("No MedPay Limit provided → skipping");
-            continue;
-          }
-
-          console.log("Raw MedPay Limit:", medpayLimit);
-          const optionValue = `CA_L_${medpayLimit}`;
-          await wait(this.page);
-          const dropdown = this.page.locator(
-            '[data-test^="coverage-item-limit-Medical Payments"] [role="combobox"]',
-          );
-          await wait(this.page);
-          await dropdown.click();
-          await this.page.waitForSelector('li[role="option"]', {
-            timeout: 10000,
-          });
-
-          const option = this.page.locator(`li[data-value="${optionValue}"]`);
-
-          await option.waitFor({ state: "visible", timeout: 10000 });
-          await option.click();
-
-          console.log(`MedPay Limit selected → ${optionValue}`);
+        if ((await medpayCheckbox.count()) === 0) {
+          console.log("MedPay checkbox not found.");
+          continue;
         }
+
+        const checked = await medpayCheckbox.isChecked();
+
+        console.log("MedPay Checked :", checked);
+
+        if (!checked) {
+          console.log("MedPay not enabled. Skipping limit selection.");
+          continue;
+        }
+        const medpayLimit = policyData["MedPay Limit"];
+
+        if (!medpayLimit) {
+          console.log("No MedPay Limit provided.");
+          continue;
+        }
+
+        const dropdown = this.page.locator(
+          '[data-test*="coverage-item-limit-Medical Payments"] [role="combobox"]',
+        );
+
+        // Wait until dropdown actually appears
+        await expect
+          .poll(async () => await dropdown.count(), {
+            timeout: 15000,
+          })
+          .toBeGreaterThan(0);
+
+        await dropdown.scrollIntoViewIfNeeded();
+
+        await dropdown.click();
+
+        const optionValue = `CA_L_${medpayLimit}`;
+
+        const option = this.page.locator(`li[data-value="${optionValue}"]`);
+
+        await expect(option).toBeVisible({
+          timeout: 10000,
+        });
+
+        await option.click();
+
+        console.log(`MedPay Limit selected -> ${optionValue}`);
       }
     }
   }
@@ -214,7 +268,7 @@ export class CoverageNavigator {
         const rrDuration = policyData[`${v} RR Duration`];
 
         // wait for dropdowns after toggle
-        await this.page.waitForTimeout(500);
+        //await this.page.waitForTimeout(500);
 
         // ===== RR LIMIT =====
         if (rrLimit) {
@@ -225,7 +279,7 @@ export class CoverageNavigator {
           await limitDropdown.waitFor({ state: "visible" });
           await limitDropdown.click();
 
-          await this.page.waitForTimeout(300);
+          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -241,7 +295,7 @@ export class CoverageNavigator {
           const durationDropdown = this.page.locator(locators.rrDuration(v));
 
           await durationDropdown.click({ timeout: 20000 });
-          await this.page.waitForTimeout(300);
+          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -257,7 +311,7 @@ export class CoverageNavigator {
       if (roadsideSelected) {
         const rsaValue = policyData[`${v} RSA Value`];
 
-        await this.page.waitForTimeout(500);
+        //await this.page.waitForTimeout(500);
 
         if (rsaValue) {
           const rsaDropdown = this.page.locator(locators.rsaLimit(v));
@@ -265,7 +319,7 @@ export class CoverageNavigator {
           await rsaDropdown.waitFor({ state: "visible" });
           await rsaDropdown.click({ timeout: 50000 });
 
-          await this.page.waitForTimeout(300);
+          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {

@@ -10,68 +10,104 @@ export class VehicleNavigator {
    * Add or update one vehicle on the quote.
    *
    * Button behavior (confirmed from UI screenshots):
-   *   Both "Update" (first vehicle) and "+ Add vehicle" (additional vehicles)
-   *   use the same [data-test="add-vehicle-button"] element — locators.addVehicleBtn.
-   *   We always click the same locator regardless of vehicleIndex.
+   * Both "Update" (first vehicle) and "+ Add vehicle" (additional vehicles)
+   * use the same [data-test="add-vehicle-button"] element.
    *
-   * Next button behavior:
-   *   Only clicked when vehicleIndex === totalVehicles - 1 (last vehicle).
-   *   Clicking Next after an intermediate vehicle would navigate away from
-   *   the vehicles page before subsequent vehicles have been entered.
-   *
-   * @param {object} vehicle       - One entry from buildRaterData().vehicles[]
-   * @param {number} vehicleIndex  - 0-based position of this vehicle in the loop
-   * @param {number} totalVehicles - Total number of vehicles on this policy
+   * Improvements:
+   * - Wait for page to stabilize before clicking.
+   * - Wait for button to be visible & enabled.
+   * - Scroll button into view.
+   * - Wait for drawer animation.
+   * - Wait for save to complete.
+   * - Wait for Next button before navigation.
    */
   async addVehicle(vehicle, vehicleIndex, totalVehicles) {
+    const addVehicleBtn = this.page.locator(locators.addVehicleBtn);
 
-    // ─── OPEN VEHICLE DRAWER ────────────────────────────────────────────────
-    // Same button for "Update" (vehicle 1) and "+ Add vehicle" (vehicles 2–8)
-    await this.page.locator(locators.addVehicleBtn).click({ timeout: 10000 });
+    // Wait until the vehicle page is fully rendered.
+    await this.page.waitForLoadState("networkidle");
 
-    // Wait for the vehicle year dropdown to be visible before clicking it.
-    // For the second vehicle, the "+ Add vehicle" button triggers a drawer
-    // open animation. Without this wait, vehicleYear.click() fires before
-    // the drawer is fully interactive, causing a timeout or stale-element error.
-    await this.page
-      .locator(locators.vehicleYear)
-      .waitFor({ state: "visible", timeout: 10000 });
+    await expect(addVehicleBtn).toBeVisible({
+      timeout: 30000,
+    });
 
-    // ─── VEHICLE YEAR ───────────────────────────────────────────────────────
-    // year comes from "V{n} Year" column via buildRaterData()
-    await this.page.locator(locators.vehicleYear).click({ timeout: 10000 });
+    await expect(addVehicleBtn).toBeEnabled({
+      timeout: 30000,
+    });
 
-    await this.page
-      .locator(locators.selectYear(vehicle.year))
-      .click({ timeout: 10000 });
+    await addVehicleBtn.scrollIntoViewIfNeeded();
 
-    // ─── VIN SEARCH ─────────────────────────────────────────────────────────
-    // Triggers the VIN lookup API; waits for Make field to auto-populate
+    console.log(`Adding Vehicle ${vehicleIndex + 1}`);
+
+    await addVehicleBtn.click();
+
+    // Wait until the drawer is completely opened.
+    await expect(this.page.locator(locators.vehicleYear)).toBeVisible({
+      timeout: 30000,
+    });
+
+    // ================= Vehicle Year =================
+
+    await this.page.locator(locators.vehicleYear).click();
+
+    await this.page.locator(locators.selectYear(vehicle.year)).click();
+
+    // ================= VIN =================
+
     await this.searchVIN(vehicle.vin);
 
-    // ─── REMAINING VEHICLE FIELDS ───────────────────────────────────────────
+    // ================= Remaining Details =================
+
     await this.fillVehicleDetails(vehicle);
 
-    // ─── SAVE ───────────────────────────────────────────────────────────────
-    await this.page.locator(locators.saveButton).click({ timeout: 10000 });
+    // ================= Save =================
 
-    // Confirm save succeeded — VIN card visible in list means drawer closed cleanly.
-    // Not waiting for saveButton hidden: a validation error keeps the drawer open
-    // indefinitely, masking the real failure. 30s covers slow API responses.
+    const saveButton = this.page.locator(locators.saveButton);
+
+    await expect(saveButton).toBeVisible({
+      timeout: 30000,
+    });
+
+    await expect(saveButton).toBeEnabled({
+      timeout: 30000,
+    });
+
+    await saveButton.click();
+
+    // Wait until saved vehicle appears on page.
     await expect(
-      this.page.locator(locators.addedVehicle(vehicle.vin))
-    ).toBeVisible({ timeout: 30000 });
+      this.page.locator(locators.addedVehicle(vehicle.vin)),
+    ).toBeVisible({
+      timeout: 30000,
+    });
 
-    // ─── ADVANCE PAGE (last vehicle only) ───────────────────────────────────
-    // Intermediate vehicles: save and stay on the vehicles page.
-    // Last vehicle: click Next to transition to the drivers page.
+    // Wait until drawer disappears completely.
+    await expect(saveButton).toBeHidden({
+      timeout: 30000,
+    });
+
+    console.log(`Vehicle ${vehicleIndex + 1} saved successfully.`);
+
+    // ================= Next Page =================
+
     if (vehicleIndex === totalVehicles - 1) {
-      await this.page.locator(locators.nextButton).click({ timeout: 10000 });
+      const nextButton = this.page.locator(locators.nextButton);
 
-      // Wait for the drivers page heading to confirm navigation succeeded
-      await expect(this.page.locator(locators.insuredRated)).toBeVisible({
-        timeout: 10000,
+      await expect(nextButton).toBeVisible({
+        timeout: 30000,
       });
+
+      await expect(nextButton).toBeEnabled({
+        timeout: 30000,
+      });
+
+      await nextButton.click();
+
+      await expect(this.page.locator(locators.insuredRated)).toBeVisible({
+        timeout: 30000,
+      });
+
+      console.log("Navigated to Drivers page.");
     }
   }
 
@@ -82,9 +118,9 @@ export class VehicleNavigator {
   // label to appear — which confirms the VIN lookup returned a result.
   // ─────────────────────────────────────────────────────────────────────────
   async searchVIN(vin) {
-    const vinInput        = this.page.locator(locators.vehicleVin);
+    const vinInput = this.page.locator(locators.vehicleVin);
     const searchVinButton = this.page.locator(locators.searchVinBtn);
-    const makeField       = this.page.locator(locators.filledMakeTextBox);
+    const makeField = this.page.locator(locators.filledMakeTextBox);
 
     await vinInput.fill("");
     await vinInput.type(vin.toString(), { delay: 300 });
@@ -100,7 +136,6 @@ export class VehicleNavigator {
   // All properties map directly to "V{n} ..." columns in TC_Template.
   // ─────────────────────────────────────────────────────────────────────────
   async fillVehicleDetails(vehicle) {
-
     // Wait for MSRP field to appear — signals the form is fully rendered
     const msrpField = this.page.locator(locators.vehicleCost);
     await expect(msrpField).toBeVisible({ timeout: 10000 });
@@ -118,21 +153,26 @@ export class VehicleNavigator {
     // becomes visible before Vehicle Use re-renders. Without this wait,
     // selectOption fires on a stale or not-yet-ready element, silently
     // leaving the dropdown at its default value.
-    await this.page.locator(locators.vehicleUse)
+    await this.page
+      .locator(locators.vehicleUse)
       .waitFor({ state: "visible", timeout: 10000 });
-    await this.page.locator(locators.vehicleUse)
+    await this.page
+      .locator(locators.vehicleUse)
       .selectOption({ label: vehicle.vehicleUse });
 
     // Purchase Date — from "V{n} Purchase Date" column (UI-only)
-    await this.page.locator(locators.purchasedDate)
+    await this.page
+      .locator(locators.purchasedDate)
       .fill(vehicle.purchaseDate ? vehicle.purchaseDate.toString() : "");
 
     // Purchase Status — "New" or "Used" from "V{n} Purchase Status" column
-    await this.page.locator(locators.purchasedStatus)
+    await this.page
+      .locator(locators.purchasedStatus)
       .selectOption({ label: vehicle.purchaseStatus });
 
     // Vehicle Damage — e.g. "None", "Minor", "Major" from "V{n} Veh Damage"
-    await this.page.locator(locators.damageStatus)
+    await this.page
+      .locator(locators.damageStatus)
       .selectOption({ label: vehicle.vehDamage });
 
     // Salvage title flag — use dedicated data-test selectors; avoids unscoped

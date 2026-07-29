@@ -5,9 +5,15 @@ import { login } from "../helpers/loginHelper.js";
 import { FakerData } from "../testData/fakerData.js";
 import { openWorkbook } from "../helpers/excelReader.js";
 import { buildRaterData } from "../helpers/raterHelper.js";
-import { writeRow, saveWorkbook } from "../helpers/excelWriter.js";
+import {
+  writeRow,
+  saveWorkbook,
+  sortSheetByTestCase,
+} from "../helpers/excelWriter.js";
 import { getPremium } from "../helpers/uiHelper.js";
 import { locators } from "../Locators/selectors.js";
+import { getTotalCoveragePremium } from "../helpers/uiHelper.js";
+import { ExcelLock } from "../helpers/ExcelLock.js";
 
 import { NameInsuredNavigator } from "../Navigators/nameInsured.js";
 import { AddressNavigator } from "../Navigators/addressNavigator.js";
@@ -18,7 +24,7 @@ import { CoverageNavigator } from "../Navigators/coverageNavigator.js";
 import { UnderwriterNavigator } from "../Navigators/underwriterNavigator.js";
 import { PaymentNavigator } from "../Navigators/paymentNavigator.js";
 import { ConfirmationNavigator } from "../Navigators/confirmationNavigator.js";
-import { PolicyEffectiveDateNavigator } from "../Navigators/policyEffectiveDateNavigator.js";
+import { FinalDetailsNavigator } from "../Navigators/finalDetailsNavigator.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILE PATHS
@@ -97,6 +103,8 @@ for (let index = 0; index < excelData.length; index++) {
     let attempt = 0;
     let success = false;
 
+    let quoteNumber = "";
+
     while (attempt < MAX_RETRIES && !success) {
       const context = await browser.newContext();
       const page = await context.newPage();
@@ -114,16 +122,11 @@ for (let index = 0; index < excelData.length; index++) {
         const driverNavigator = new DriverNavigator(page, row["State"]);
 
         const violationsNavigator = new ViolationsNavigator(page);
-        const policyEffectiveDateNavigator = new PolicyEffectiveDateNavigator(page);
+        const finalDetailsNavigator = new FinalDetailsNavigator(page);
         const coverageNavigator = new CoverageNavigator(page);
         const underwriterNavigator = new UnderwriterNavigator(page);
         const paymentNavigator = new PaymentNavigator(page);
         const confirmationNavigator = new ConfirmationNavigator(page);
-
-        const { workbook, sheet: uiPremiumSheet } = openWorkbook(
-          resultPath,
-          "Output_PolicyUIPremium",
-        );
 
         // LOGIN
         await login(page, "agent");
@@ -161,8 +164,96 @@ for (let index = 0; index < excelData.length; index++) {
         }
 
         await violationsNavigator.completeViolations(row);
-        await policyEffectiveDateNavigator.continueToCoverage();
+        await finalDetailsNavigator.fillPriorCoverageDetails(row);
+        await finalDetailsNavigator.continueToCoverage();
         await coverageNavigator.applyCoverages(row);
+
+        try {
+          await page.locator(locators.quoteNumber).waitFor({
+            state: "visible",
+            timeout: 10000,
+          });
+
+          quoteNumber =
+            (await page.locator(locators.quoteNumber).textContent())?.trim() ||
+            "";
+
+          console.log("Quote Number:", quoteNumber);
+        } catch {
+          console.log("Quote Number not available yet.");
+        }
+
+        const isProd = credentials.environment === "PROD";
+
+        if (isProd) {
+          console.log("=============== Production Mode ===============");
+
+          // Wait until Quote Number is visible
+          await page.locator(locators.quoteNumber).waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          const quoteNumber = (
+            await page.locator(locators.quoteNumber).textContent()
+          ).trim();
+
+          console.log("Quote Number:", quoteNumber);
+
+          // Wait until Pricing Breakdown is loaded
+          await page.locator(locators.vehicleCoveragePremiums).first().waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          // Capture Total Coverage Premium
+          const totalCoveragePremium = await getTotalCoveragePremium(
+            page,
+            locators.vehicleCoveragePremiums,
+          );
+
+          console.log("Total Coverage Premium:", totalCoveragePremium);
+
+          // ─── WRITE QUOTE RESULTS (PRODUCTION) ──────────────────────────────
+
+          // TC_ID from the input row is used as the row anchor.
+          const tcNo =
+            row["TC_ID"]?.toString().trim() ||
+            `TC${String(index + 1).padStart(3, "0")}`;
+
+          const uiPremiumData = {
+            "TestCase No": tcNo,
+            totalPremium: totalCoveragePremium,
+            "Policy Number": quoteNumber,
+            Status: "Passed",
+          };
+
+          // ===========================
+          // Thread-safe Excel write
+          // ===========================
+          const excelLock = new ExcelLock(resultPath);
+
+          await excelLock.lock();
+
+          try {
+            const { workbook, sheet: uiPremiumSheet } = openWorkbook(
+              resultPath,
+              "Output_PolicyUIPremium",
+            );
+
+            writeRow(uiPremiumSheet, uiPremiumData, tcNo);
+            saveWorkbook(workbook, resultPath);
+
+            const verify = xlsx.readFile(resultPath);
+            const verifySheet = verify.Sheets["Output_PolicyUIPremium"];
+          } finally {
+            await excelLock.unlock();
+          }
+
+          console.log("Quote Details written to Output Excel.");
+
+          return;
+        }
 
         // ─── UNDERWRITING ───────────────────────────────────────────────────
         await paymentNavigator.handleValidateEligibility();
@@ -287,8 +378,24 @@ for (let index = 0; index < excelData.length; index++) {
           "Policy Number": policyNo,
         };
 
-        writeRow(uiPremiumSheet, uiPremiumData, tcNo);
-        saveWorkbook(workbook, resultPath);
+        const excelLock = new ExcelLock(resultPath);
+
+        await excelLock.lock();
+
+        try {
+          const { workbook, sheet: uiPremiumSheet } = openWorkbook(
+            resultPath,
+            "Output_PolicyUIPremium",
+          );
+
+          writeRow(uiPremiumSheet, uiPremiumData, tcNo);
+          saveWorkbook(workbook, resultPath);
+
+          const verify = xlsx.readFile(resultPath);
+          const verifySheet = verify.Sheets["Output_PolicyUIPremium"];
+        } finally {
+          await excelLock.unlock();
+        }
 
         success = true;
 

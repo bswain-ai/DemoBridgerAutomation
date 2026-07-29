@@ -70,8 +70,6 @@ export async function login(page, role = "agent") {
       }
 
       await page.context().clearCookies();
-
-      await page.waitForTimeout(5000);
     }
   }
 }

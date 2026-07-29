@@ -11,27 +11,34 @@ export async function searchPolicy(page, policyNumber) {
   await expect(searchBox).toBeVisible({ timeout: 50000 });
   await expect(policyLists).toBeVisible({ timeout: 50000 });
 
-  // Clear existing value properly
+  // Clear previous search
   await searchBox.click();
-  await searchBox.click();
-  await searchBox.fill("");
+  await searchBox.press("Control+A");
+  await searchBox.press("Backspace");
 
-  // Type like real user
+  // Type policy number
   await searchBox.pressSequentially(policyNumber, { delay: 100 });
 
-  // Dynamic search result
+  // Wait for loader (only if it exists)
+  const loader = page.locator(locators.loader);
+
+  if (await loader.count()) {
+    await loader.waitFor({
+      state: "hidden",
+      timeout: 30000,
+    });
+  }
+
+  // Create locator AFTER typing
   const policyResult = page.locator(locators.searchPolicy(policyNumber));
 
-  // Wait until result appears
+  // Wait for result
   await expect(policyResult).toBeVisible({ timeout: 30000 });
 
-  // Scroll into view if needed
+  // Open policy
   await policyResult.scrollIntoViewIfNeeded();
+  await policyResult.click();
 
-  // Safe click
-  await policyResult.click({ force: true });
-
-  // Better stability than networkidle alone
   await page.waitForLoadState("domcontentloaded");
 
   console.log(`Opened Policy: ${policyNumber}`);
