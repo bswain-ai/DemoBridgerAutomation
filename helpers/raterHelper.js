@@ -124,15 +124,16 @@ export function buildRaterData(row) {
     tcId: g("TC_ID"),
     state: g("State"), // passed to rater.ps1 to select TX vs CA mapping branch
     effectiveDate: dateFormatUSA(g("Effective Date")),
-    term: toNum(g("Term Length")) || 6, // default: 6-month term
+    term: toNum(g("Term Length")) || 6,
     zip: toNum(g("Garage Zip")),
-    nonOwner: toNum(g("Non-Owner")),
+    nonOwner: String(g("Non-Owner")).trim().toLowerCase() === "yes" ? 1 : 0,
     priorCoverage: toNum(g("Prior Coverage")),
     priorCovMonths: toNum(g("Prior Cov Months")),
     rolloverDiscount: toNum(g("Rollover Discount")),
     isRenew: toNum(g("IsRenew")),
     daysInForce: toNum(g("Days In Force")),
-    // Liability coverages — policy-wide, apply to every vehicle on the policy
+    pdSelection: toNum(g("PD Selection")),
+    pdLimit: g("PD Limit"),
     umbi: toNum(g("UMBI Selection")),
     uimbi: toNum(g("UIMBI Selection")),
     umpd: toNum(g("UMPD Selection")),
@@ -181,6 +182,7 @@ export function buildRaterData(row) {
       // Roadside assistance
       rsaSelection: toNum(g(`V${n} RSA Selection`)),
       rsaVal: toNum(g(`V${n} RSA Value`)),
+      fullSafetyGlass: toNum(g(`V${n} Full Safety Glass`)),
       // Per-vehicle UW flag — triggers the Unacceptable Risk Surcharge in the rater
       unacceptableRisk: toNum(g(`V${n} Unacceptable Risk`)),
 
@@ -221,7 +223,10 @@ export function buildRaterData(row) {
       // Add Driver drawer. Null for D1 (primary insured, no relationship
       // field shown). For D2–D8 reads from template; defaults to "Spouse".
       relationship:
-        n === 1 ? null : g(`D${n} Relationship to Named Insured`) || "Spouse",
+        n === 1
+          ? null
+          : g(`D${n} Relationship`, `D${n} Relationship to Named Insured`) ||
+            "Spouse",
       licenseState: g(`D${n} License State`),
       licenseStatus: g(`D${n} License Status`),
       // "License Type" (Full / Restricted / Learner's Permit) has no dedicated
@@ -231,6 +236,16 @@ export function buildRaterData(row) {
       licenseYears: toNum(g(`D${n} License Years`)),
       licenseMonths: toNum(g(`D${n} License Months`)),
       sr22: toNum(g(`D${n} SR22`)),
+      physiciansReport:
+        policy.state?.toUpperCase() === "AZ" ||
+        policy.state?.toUpperCase() === "ARIZONA"
+          ? toNum(g(`D${n} Physician Report`))
+          : 0,
+      drugDiscount:
+        policy.state?.toUpperCase() === "AZ" ||
+        policy.state?.toUpperCase() === "ARIZONA"
+          ? toNum(g(`D${n} Drug Discount`))
+          : 0,
       drivingExp: toNum(g(`D${n} Driving Exp`)),
       age55OrOlder: toNum(g(`D${n} 55Plus Driver`)),
       goodStudent: toNum(g(`D${n} GoodStudent Discount`)),
@@ -329,17 +344,21 @@ export function getRaterPremium(raterFile) {
   // Texas
   if (wb.Sheets["RateOrder"]) {
     sheet = wb.Sheets["RateOrder"];
-    cellRef = "M160";
+
+    // Arizona also uses RateOrder.
+    // Detect Arizona using C165 / AZ layout.
+    if (sheet["C165"]) {
+      cellRef = "C165";
+    } else {
+      cellRef = "M160";
+    }
   }
 
   // California
   else if (wb.Sheets["OwnerRater"]) {
     sheet = wb.Sheets["OwnerRater"];
     cellRef = "I92";
-  }
-
-  // Sheet not found
-  else {
+  } else {
     console.log("Premium sheet not found");
     return 0;
   }
@@ -347,6 +366,7 @@ export function getRaterPremium(raterFile) {
   const premium = Number(sheet[cellRef]?.v || 0);
 
   console.log(`Captured Premium (${cellRef}):`, premium);
+
   return premium;
 }
 
@@ -461,23 +481,47 @@ export function getRaterCoverageData(policyNo, type) {
 export function getDynamicDriverVehicleMappings(raterFile) {
   const wb = xlsx.readFile(raterFile);
 
-  const sheet = wb.Sheets["RateOrder"];
+  const sheet = wb.Sheets["Rate Order"] || wb.Sheets["RateOrder"];
 
   if (!sheet) {
-    console.log("RateOrder sheet not found");
+    console.log("Rate Order sheet not found");
     return [];
   }
 
+  // ============================================
+  // ARIZONA
+  // ============================================
+
+  if (sheet["B61"] !== undefined && sheet["E61"] !== undefined) {
+    const mappings = [];
+
+    const vehicleCount = Number(sheet["AB36"]?.v || 0);
+    const driverCount = Number(sheet["AA36"]?.v || 0);
+
+    for (let vehicle = 1; vehicle <= vehicleCount; vehicle++) {
+      for (let driver = 1; driver <= driverCount; driver++) {
+        mappings.push({
+          vehicle,
+          driver,
+        });
+      }
+    }
+
+    console.log("Arizona Driver/Vehicle Mappings:", mappings);
+
+    return mappings;
+  }
+
+  // ============================================
+  // TEXAS
+  // ============================================
+
   const mappings = [];
 
-  // Mapping rows
   for (let row = 152; row <= 159; row++) {
     const vehicle = sheet[`G${row}`]?.v;
     const driver = sheet[`H${row}`]?.v;
 
-    console.log(`Row ${row} => Vehicle: ${vehicle}, Driver: ${driver}`);
-
-    // Skip empty rows
     if (
       vehicle === undefined ||
       driver === undefined ||
@@ -495,18 +539,8 @@ export function getDynamicDriverVehicleMappings(raterFile) {
     });
   }
 
-  // Original Mapping
-  console.log("Original RateOrder Mapping:");
-
-  mappings.forEach((m, index) => {
-    console.log(
-      `Mapping ${index + 1}: Vehicle ${m.vehicle} -> Driver ${m.driver}`,
-    );
-  });
-
   return mappings;
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // APPLY RATE MAPPING
 // ─────────────────────────────────────────────────────────────────────────────
@@ -598,6 +632,100 @@ export function getCurrentMappedRaterData(
     console.log("Using California Parser");
 
     return getCaliforniaMappedRaterData(raterFile, type);
+  }
+
+  // ============================================
+  // ARIZONA
+  // ============================================
+
+  if (state === "AZ" || state === "Arizona") {
+    console.log("Using Arizona Parser");
+
+    try {
+      const wb = xlsx.readFile(raterFile, {
+        raw: true,
+        cellFormula: false,
+        cellNF: false,
+        cellText: false,
+      });
+
+      const sheet = wb.Sheets["Rate Order"];
+
+      if (!sheet) {
+        console.log("Arizona Rate Order sheet missing");
+        return null;
+      }
+
+      const rowMap = {
+        Base: 76,
+        Region: 77,
+        Profile: 78,
+        Household: 79,
+        "Policy class": 80,
+        "Model year": 81,
+        "ISO Factor": 82,
+        "Non-Owner / FR": 83,
+        "Limits / Deductible": 84,
+        Term: 85,
+        "Sum of Surcharges": 86,
+        "License Type Surcharge": 87,
+        "Business Use": 88,
+        "Violations Surcharge": 89,
+        "Unacceptable Risk Surcharge": 90,
+        "Vehicle Surcharge": 91,
+        "Sum of discounts": 92,
+        "Multi-Car Discount": 93,
+        "Prior Coverage Discount": 94,
+        "Renewal Discount": 95,
+        "Bridger Prior Coverage Discount": 96,
+        "Defensive Driver Discount": 97,
+        "Drug/Alcohol Awareness Discount": 98,
+        "Vehicle Discount": 99,
+        "Anti-Theft Discount": 100,
+      };
+
+      const row = rowMap[type];
+
+      if (!row) {
+        console.log(`No Arizona row mapping for ${type}`);
+        return null;
+      }
+
+      const getVal = (cell) => {
+        const value = sheet[cell]?.v;
+
+        if (value === undefined || value === null || value === "") {
+          return 0;
+        }
+
+        return Number(value);
+      };
+
+      const result = {
+        BI: {
+          factor: getVal(`C${row}`),
+        },
+
+        PD: {
+          factor: getVal(`D${row}`),
+        },
+
+        COMP: {
+          factor: getVal(`K${row}`),
+        },
+
+        COLL: {
+          factor: getVal(`L${row}`),
+        },
+      };
+
+      console.log(`Arizona Rater Data (${type}) =>`, result);
+
+      return result;
+    } catch (error) {
+      console.log("Arizona rater data error:", error.message);
+      return null;
+    }
   }
 
   // ============================================

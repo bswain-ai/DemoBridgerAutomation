@@ -19,7 +19,7 @@ export async function searchPolicy(page, policyNumber) {
   // Type policy number
   await searchBox.pressSequentially(policyNumber, { delay: 100 });
 
-  // Wait for loader (only if it exists)
+  // Wait for loader if present
   const loader = page.locator(locators.loader);
 
   if (await loader.count()) {
@@ -29,11 +29,26 @@ export async function searchPolicy(page, policyNumber) {
     });
   }
 
-  // Create locator AFTER typing
-  const policyResult = page.locator(locators.searchPolicy(policyNumber));
+  // ---------------------------------------------
+  // Find policy with or without -00 suffix
+  // ---------------------------------------------
+
+  const basePolicyNumber = policyNumber.replace(/-00$/, "");
+
+  const policyResult = page.getByText(
+    new RegExp(
+      `Policy\\s*-\\s*${basePolicyNumber}(?:-00)?`
+    )
+  ).first();
 
   // Wait for result
-  await expect(policyResult).toBeVisible({ timeout: 30000 });
+  await expect(policyResult).toBeVisible({
+    timeout: 30000,
+  });
+
+  console.log(
+    `Policy result found: ${await policyResult.textContent()}`
+  );
 
   // Open policy
   await policyResult.scrollIntoViewIfNeeded();

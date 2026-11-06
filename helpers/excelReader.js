@@ -244,12 +244,11 @@ export function getFailedPolicies(
  *                               First row's keys are the column headers.
  */
 export function validateInputSchema(rows) {
-
   // Guard: catch completely empty sheet before accessing rows[0]
   if (!rows || rows.length === 0) {
     throw new Error(
       "[Schema Validation Failed] Input Excel sheet is empty — no data rows found " +
-      "in 'TC_Template' sheet of the multi-vehicle input file."
+        "in 'TC_Template' sheet of the multi-vehicle input file.",
     );
   }
 
@@ -269,38 +268,38 @@ export function validateInputSchema(rows) {
     // ── Policy / Submission ──────────────────────────────────────
     // Column names match the multi-template TC_Template sheet exactly.
     // "TC_ID" uses underscore — the template header is TC_ID not "TC ID".
-    "TC_ID",            // test case identity — TC_NO anchor pattern requires this
-    "State",            // selectOption in nameInsured — throws if missing
-    "Program",          // selectOption in nameInsured — throws if missing
-    "Effective Date",   // date field in nameInsured + rater input (was: EffectiveDate)
-    "Term Length",      // selectOption in nameInsured — throws if missing (was: TermLength)
+    "TC_ID", // test case identity — TC_NO anchor pattern requires this
+    "State", // selectOption in nameInsured — throws if missing
+    "Program", // selectOption in nameInsured — throws if missing
+    "Effective Date", // date field in nameInsured + rater input (was: EffectiveDate)
+    "Term Length", // selectOption in nameInsured — throws if missing (was: TermLength)
     // ── Address ──────────────────────────────────────────────────
-    "Garage Address",   // MUI autocomplete — throws if missing (was: Address)
-    "Garage City",      // address validation — throws if missing (was: City)
-    "Garage Zip",       // rater territory lookup — wrong premium if missing (was: Zip)
+    "Garage Address", // MUI autocomplete — throws if missing (was: Address)
+    "Garage City", // address validation — throws if missing (was: City)
+    "Garage Zip", // rater territory lookup — wrong premium if missing (was: Zip)
     // ── Policy counts ────────────────────────────────────────────
     // Used by createPolicy.spec.js to know how many V/D loops to run.
-    "Vehicle Count",    // drives V1–V8 loop — throws if missing or zero
-    "Driver Count",     // drives D1–D8 loop — throws if missing or zero
+    "Vehicle Count", // drives V1–V8 loop — throws if missing or zero
+    "Driver Count", // drives D1–D8 loop — throws if missing or zero
     // ── Vehicle 1 (minimum required — additional vehicles are optional) ──
     // V1 prefix is the literal column header in the multi-template.
     // Single-vehicle test cases use V1 columns only (Vehicle Count = 1).
-    "V1 VIN",           // test skips entirely if blank (createPolicy guard)
-    "V1 Year",          // year dropdown click — throws if missing
-    "V1 Make",          // rater field — wrong premium if missing
-    "V1 Model",         // rater field — wrong premium if missing
-    "V1 Vehicle Use",   // selectOption({label}) — throws if missing/invalid
+    "V1 VIN", // test skips entirely if blank (createPolicy guard)
+    "V1 Year", // year dropdown click — throws if missing
+    "V1 Make", // rater field — wrong premium if missing
+    "V1 Model", // rater field — wrong premium if missing
+    "V1 Vehicle Use", // selectOption({label}) — throws if missing/invalid
     // ── Driver 1 (minimum required — additional drivers are optional) ────
     // D1 prefix is the literal column header in the multi-template.
     // Single-driver test cases use D1 columns only (Driver Count = 1).
-    "D1 Gender",        // selectOption({label}) — throws if missing
-    "D1 Marital Status",// selectOption({label}) — throws if missing
-    "D1 DOB",           // .toString() called directly — throws if undefined
+    "D1 Gender", // selectOption({label}) — throws if missing
+    "D1 Marital Status", // selectOption({label}) — throws if missing
+    "D1 DOB", // .toString() called directly — throws if undefined
     "D1 License State", // MUI autocomplete type — throws if missing
-    "D1 License Status",// selectOption({label}) — throws if missing
+    "D1 License Status", // selectOption({label}) — throws if missing
     "D1 License Years", // .fill() called directly — throws if undefined
-    "D1 License Months",// .fill() called directly — throws if undefined
-    "D1 Occupation",    // occupation dropdown click — throws if missing
+    "D1 License Months", // .fill() called directly — throws if undefined
+    "D1 Occupation", // occupation dropdown click — throws if missing
   ];
 
   // Extract the actual column names present in the parsed Excel data.
@@ -310,18 +309,49 @@ export function validateInputSchema(rows) {
   // Collect every missing column before throwing — report all problems at
   // once so the QA analyst can fix the Excel in one pass, not one by one.
   const missingColumns = REQUIRED_COLUMNS.filter(
-    (col) => !availableColumns.includes(col)
+    (col) => !availableColumns.includes(col),
   );
 
   if (missingColumns.length > 0) {
     throw new Error(
       `[Schema Validation Failed] ${missingColumns.length} required column(s) missing ` +
-      `from the 'TC_Template' sheet:\n` +
-      missingColumns.map((c) => `  • ${c}`).join("\n") +
-      "\n\nAdd these columns to the input Excel before running."
+        `from the 'TC_Template' sheet:\n` +
+        missingColumns.map((c) => `  • ${c}`).join("\n") +
+        "\n\nAdd these columns to the input Excel before running.",
     );
   }
 
   // All required columns present — safe to proceed with the test run.
-  console.log(`[Schema Validation] OK — all ${REQUIRED_COLUMNS.length} required columns present.`);
+  console.log(
+    `[Schema Validation] OK — all ${REQUIRED_COLUMNS.length} required columns present.`,
+  );
+}
+
+/**
+ * =============================
+ * Filter Test Cases by Suite
+ * =============================
+ */
+export function filterTestCasesBySuite(rows) {
+  const executionSuite = process.env.EXECUTION_SUITE || "ALL";
+
+  if (executionSuite.trim().toUpperCase() === "ALL") {
+    return rows;
+  }
+
+  // Requested suites from .env
+  const requestedSuites = executionSuite
+    .split(",")
+    .map((s) => s.trim().toLowerCase());
+
+  return rows.filter((row) => {
+    if (!row.Suite) {
+      return false;
+    }
+
+    const rowSuites = row.Suite.split(",").map((s) => s.trim().toLowerCase());
+
+    // Match if ANY requested suite exists in the row
+    return requestedSuites.some((suite) => rowSuites.includes(suite));
+  });
 }

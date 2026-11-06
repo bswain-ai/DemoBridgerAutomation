@@ -18,16 +18,28 @@ export class PaymentNavigator {
 
     console.log(`Selecting Payment Option: ${paymentOption}`);
 
-    const checkbox = this.page.locator(
-      locators.paymentOptionCheckbox(paymentOption),
-    );
+    const paymentMethodDropdown = this.page.getByLabel("Down Payment Method", {
+      exact: true,
+    });
 
-    await checkbox.waitFor({
+    await paymentMethodDropdown.waitFor({
       state: "visible",
       timeout: 50000,
     });
 
-    await checkbox.click({ force: true });
+    await paymentMethodDropdown.click();
+
+    const option = this.page.getByRole("option", {
+      name: paymentOption,
+      exact: true,
+    });
+
+    await option.waitFor({
+      state: "visible",
+      timeout: 10000,
+    });
+
+    await option.click();
 
     console.log(`Selected Payment Option: ${paymentOption}`);
   }
@@ -83,20 +95,24 @@ export class PaymentNavigator {
 
     // Fill Check Number only for Pay in Full
     if (paymentOption === "Pay in Full") {
-      console.log(`Payment Option = ${paymentOption} - Filling Check Number`);
+      console.log(`Payment Option = ${paymentOption}`);
 
-      await this.page.locator(locators.checkNumberTextBox).waitFor({
-        state: "visible",
-        timeout: 50000,
-      });
+      const checkNumberField = this.page.locator(locators.checkNumberTextBox);
 
-      await this.page
-        .locator(locators.checkNumberTextBox)
-        .fill(String(policyData.ChkNumber));
-    } else {
-      console.log(
-        `Payment Option = ${paymentOption} - Check Number not required`,
-      );
+      try {
+        await checkNumberField.waitFor({
+          state: "visible",
+          timeout: 5000,
+        });
+
+        await checkNumberField.fill(String(policyData.ChkNumber || ""));
+
+        console.log("Check Number filled successfully.");
+      } catch {
+        console.log(
+          "Check Number field is not available in the new Payment UI. Continuing without Check Number.",
+        );
+      }
     }
 
     // Producer Checkbox

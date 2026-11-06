@@ -519,6 +519,255 @@ try {
         Write-Host "[$tcId][RATER] CALIFORNIA mapping completed"
     }
 
+    # ============================================================
+# ARIZONA
+# ============================================================
+elseif ($state -in @("AZ", "ARIZONA")) {
+
+    Write-Host "[RATER][$tcId] AZ mapping started"
+
+    # --------------------------------------------------------
+    # SELECT AZ RATER SHEET
+    # --------------------------------------------------------
+    $rate = $wb.Sheets.Item("Rate Order")
+
+    # --------------------------------------------------------
+    # POLICY DETAILS - ROW 36
+    # --------------------------------------------------------
+    $rate.Range("B36").Value2 = "$($pol.effectiveDate)"
+    $rate.Range("C36").Value2 = [int]$pol.term
+    $rate.Range("D36").Value2 = To-YesNo $pol.nonOwner
+    $rate.Range("E36").Value2 = [int]$pol.zip
+    $rate.Range("F36").Value2 = [int]$pol.priorCovMonths
+    $rate.Range("G36").Value2 = To-YN $pol.rolloverDiscount
+    $rate.Range("H36").Value2 = [int]$pol.isRenew
+    $rate.Range("I36").Value2 = [int]$pol.daysInForce
+
+    # UMBI
+    $rate.Range("N36").Value2 = [int]$pol.umbi
+
+    if ($pol.umbiLimit) {
+        $rate.Range("P36").Value2 = "$($pol.umbiLimit)"
+    }
+
+    # UIMBI
+    $rate.Range("Q36").Value2 = [int]$pol.uimbi
+
+    if ($pol.uimbiLimit) {
+        $rate.Range("R36").Value2 = "$($pol.uimbiLimit)"
+    }
+
+    # UMPD
+    $rate.Range("S36").Value2 = [int]$pol.umpd
+
+    if ($pol.umpdLimit) {
+        $rate.Range("T36").Value2 = "$($pol.umpdLimit)"
+    }
+
+    # UIMPD
+    $rate.Range("U36").Value2 = [int]$pol.uimpd
+
+    if ($pol.uimpdLimit) {
+        $rate.Range("V36").Value2 = "$($pol.uimpdLimit)"
+    }
+
+    # PIP
+    $rate.Range("W36").Value2 = [int]$pol.pip
+
+    if ($pol.pipLimit) {
+        $rate.Range("X36").Value2 = [int]$pol.pipLimit
+    }
+
+    # MedPay
+    $rate.Range("Y36").Value2 = [int]$pol.medpay
+
+    if ($pol.medpayLimit) {
+        $rate.Range("Z36").Value2 = [int]$pol.medpayLimit
+    }
+
+    # --------------------------------------------------------
+    # VEHICLE ROWS 40-47
+    # --------------------------------------------------------
+    for ($v = 0; $v -lt $data.vehicles.Count; $v++) {
+
+        $veh = $data.vehicles[$v]
+        $row = 40 + $v
+
+        # Vehicle Number
+        $rate.Range("A$row").Value2 = [int]($v + 1)
+
+        # VIN
+        $rate.Range("B$row").Value2 = "$($veh.vin)"
+
+        # Year
+        $rate.Range("C$row").Value2 = [int]$veh.year
+
+        # Make
+        if ($veh.make) {
+            $rate.Range("D$row").Value2 = "$($veh.make)"
+        }
+
+        # Model
+        if ($veh.model) {
+            $rate.Range("E$row").Value2 = "$($veh.model)"
+        }
+
+        # Symbols
+        $rate.Range("F$row").Value2 = [int]$veh.compSymbol
+        $rate.Range("G$row").Value2 = [int]$veh.collSymbol
+
+        # Vehicle Use
+        $rate.Range("H$row").Value2 = "$($veh.vehicleUse)"
+
+        # Unacceptable Risk
+        $rate.Range("I$row").Value2 = To-YN $veh.unacceptableRisk
+
+        # Comp / Collision
+        $rate.Range("J$row").Value2 = [int]$veh.compSelection
+        $rate.Range("K$row").Value2 = [int]$veh.collSelection
+
+        # Comp Deductible
+        if ([int]$veh.compSelection -eq 1) {
+            $rate.Range("L$row").Value2 = [int]$veh.compDed
+        }
+        else {
+            $rate.Range("L$row").Value2 = 0
+        }
+
+        # Collision Deductible
+        if ([int]$veh.collSelection -eq 1) {
+            $rate.Range("M$row").Value2 = [int]$veh.collDed
+        }
+        else {
+            $rate.Range("M$row").Value2 = 0
+        }
+
+        # RR
+        $rate.Range("N$row").Value2 = [int]$veh.rrSelection
+
+        if ($veh.rrLimit) {
+            $rate.Range("P$row").Value2 = "$($veh.rrLimit)"
+        }
+
+        # RSA
+        $rate.Range("Q$row").Value2 = [int]$veh.rsaSelection
+
+        if ($veh.rsaVal) {
+            $rate.Range("R$row").Value2 = [int]$veh.rsaVal
+        }
+
+        # Safety Glass
+        if ($null -ne $veh.safetyGlassSelection) {
+            $rate.Range("S$row").Value2 = [int]$veh.safetyGlassSelection
+        }
+
+        if ($veh.safetyGlassValue) {
+            $rate.Range("T$row").Value2 = "$($veh.safetyGlassValue)"
+        }
+    }
+
+    # --------------------------------------------------------
+    # DRIVER ROWS 51-58
+    # --------------------------------------------------------
+    for ($d = 0; $d -lt $data.drivers.Count; $d++) {
+
+        $drv = $data.drivers[$d]
+        $row = 51 + $d
+
+        # Driver Number
+        $rate.Range("A$row").Value2 = [int]($d + 1)
+
+        # Gender
+        $rate.Range("B$row").Value2 = "$($drv.gender)"
+
+        # Marital Status
+        $rate.Range("C$row").Value2 = "$($drv.maritalStatus)"
+
+        # DOB
+        $rate.Range("D$row").Value2 = "$($drv.dob)"
+
+        # License State
+        $rate.Range("E$row").Value2 = "$($drv.licenseState)"
+
+        # License Status
+        $rate.Range("F$row").Value2 = "$($drv.licenseStatus)"
+
+        # SR22
+        $rate.Range("G$row").Value2 = To-YesNo $drv.sr22
+
+        # Defensive Driver
+        $rate.Range("H$row").Value2 = To-YN $drv.defensiveDriver
+
+        # Drug Discount
+        $rate.Range("I$row").Value2 = To-YN $drv.drugDiscount
+
+        # Major Violations
+        $rate.Range("J$row").Value2 = [int]$drv.majorViolations
+
+        # Minor Violations
+        $rate.Range("K$row").Value2 = [int]$drv.minorViolations
+
+        # Chargeable Violations
+        $rate.Range("L$row").Value2 = [int]$drv.chargeableViolations
+    }
+
+    # --------------------------------------------------------
+    # RECALCULATE
+    # --------------------------------------------------------
+    Write-Host "[RATER][$tcId] AZ Calculate()"
+
+    $excel.Calculate()
+    Start-Sleep -Seconds 2
+
+    # --------------------------------------------------------
+    # RATE EACH VEHICLE / DRIVER COMBINATION
+    # --------------------------------------------------------
+    $mappings = @()
+
+    for ($v = 1; $v -le $data.vehicles.Count; $v++) {
+
+        for ($d = 1; $d -le $data.drivers.Count; $d++) {
+
+            # Set vehicle / driver selector
+            $rate.Range("B61").Value2 = "$v"
+            $rate.Range("E61").Value2 = "$d"
+
+            $excel.Calculate()
+            Start-Sleep -Milliseconds 500
+
+            # Read calculated mapping
+            $vehicleValue = $rate.Range("G65").Text.Trim()
+            $driverValue  = $rate.Range("H69").Text.Trim()
+
+            if ($vehicleValue -and
+                $driverValue -and
+                $vehicleValue -ne "-" -and
+                $driverValue -ne "-") {
+
+                $mappings += @{
+                    vehicle = $vehicleValue
+                    driver  = $driverValue
+                }
+            }
+        }
+    }
+
+    # --------------------------------------------------------
+    # SAVE MAPPINGS
+    # --------------------------------------------------------
+    $mappingsJson = $mappings | ConvertTo-Json -Depth 5
+
+    $mappingsPath = "$PSScriptRoot\mappings.json"
+
+    Set-Content `
+        -Path $mappingsPath `
+        -Value $mappingsJson
+
+    Write-Host "[RATER][$tcId] AZ mappings saved"
+
+    Write-Host "[$tcId][RATER] ARIZONA mapping completed"
+}
+
     else {
         throw "Unsupported state: $state"
     }

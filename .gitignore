@@ -20,3 +20,9 @@ node_modules/
 # Diagnostic screenshots — produced by temporary inspect_*.spec.js scripts.
 # These are never needed in version history.
 *.png
+
+/allure-report/
+/allure-results/
+
+/allure-report/
+/allure-results/

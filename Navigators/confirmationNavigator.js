@@ -89,6 +89,75 @@ export class ConfirmationNavigator {
       `Element click failed after ${maxRetries} retries.\n\n${lastError?.message}`,
     );
   }
+
+  // ==================================================
+  // Payment Authorization
+  // ==================================================
+  async handlePaymentAuthorization(testData) {
+    console.log("Handling Payment Authorization - Step 5/6");
+
+    // ==========================================
+    // Payment Authorization Checkbox
+    // ==========================================
+    const authorizationCheckbox = this.page.locator(
+      locators.paymentAuthorizationCheckbox,
+    );
+
+    await authorizationCheckbox.waitFor({
+      state: "visible",
+      timeout: 60000,
+    });
+
+    await authorizationCheckbox.scrollIntoViewIfNeeded();
+
+    if (!(await authorizationCheckbox.isChecked())) {
+      await authorizationCheckbox.check({ force: true });
+    }
+
+    await expect(authorizationCheckbox).toBeChecked({
+      timeout: 10000,
+    });
+
+    console.log("Payment Authorization checkbox checked.");
+
+    // ==========================================
+    // Full Legal Name
+    // ==========================================
+    const fullLegalNameField = this.page.getByRole("textbox", {
+      name: "Full Legal Name",
+    });
+
+    await fullLegalNameField.waitFor({
+      state: "visible",
+      timeout: 60000,
+    });
+
+    const fullLegalName = await fullLegalNameField.getAttribute("placeholder");
+
+    console.log("Full Legal Name:", fullLegalName);
+
+    if (await fullLegalNameField.isEditable()) {
+      await fullLegalNameField.fill(fullLegalName);
+      console.log("Full Legal Name entered.");
+    }
+
+    // ==========================================
+    // Click Next
+    // ==========================================
+    const nextButton = this.page.locator(locators.nxtButton);
+
+    await expect(nextButton).toBeVisible({
+      timeout: 30000,
+    });
+
+    await expect(nextButton).toBeEnabled({
+      timeout: 30000,
+    });
+
+    await this.safeClick(nextButton);
+
+    console.log("Payment Authorization completed.");
+  }
   // ==================================================
   // Confirm & E-Sign Flow (Bulletproof)
   // ==================================================
@@ -120,39 +189,35 @@ export class ConfirmationNavigator {
     // Electronic Delivery & TCPA Consent
     // ==============================
 
-    await this.safeClick(
-      this.page.locator(locators.electronicDeliveryCheckbox),
-    );
+    await this.safeClick(this.page.locator(locators.vehicleReleaseCheckbox));
 
     // Vehicle Release (CA/TX safe)
-    const vehicleReleaseCheckbox = this.page.locator(
-      locators.vehicleReleaseCheckbox,
-    );
+    // const vehicleReleaseCheckbox = this.page.locator(
+    //   locators.vehicleReleaseCheckbox,
+    // );
 
-    if (await vehicleReleaseCheckbox.isVisible().catch(() => false)) {
-      await this.safeClick(vehicleReleaseCheckbox);
-    }
+    // if (await vehicleReleaseCheckbox.isVisible().catch(() => false)) {
+    //   await this.safeClick(vehicleReleaseCheckbox);
+    // }
 
-    const eDeliveryNameField = this.page.locator(locators.eDeliveryNameField);
-
+    //const eDeliveryNameField = this.page.locator(locators.eDeliveryNameField);
     const vehicleReleaseField = this.page.locator(
       locators.vehicleReleaseNameField,
     );
 
-    // Get insured name from placeholder
-    const insuredFullName =
-      await eDeliveryNameField.getAttribute("placeholder");
+    const insuredFullName = (
+      await vehicleReleaseField.getAttribute("placeholder")
+    )?.trim();
 
-    console.log("Insured Name:", insuredFullName);
+    //console.log("Insured Name from placeholder:", insuredFullName);
 
     if (insuredFullName) {
-      await eDeliveryNameField.fill(insuredFullName);
+      await vehicleReleaseField.fill(insuredFullName);
 
       if (await vehicleReleaseField.isVisible().catch(() => false)) {
         await vehicleReleaseField.fill(insuredFullName);
       }
     }
-
     // Marketing consent (optional)
     const marketingConsent = this.page.locator(
       locators.marketingConsentCheckbox,
@@ -162,7 +227,7 @@ export class ConfirmationNavigator {
       await this.safeClick(marketingConsent);
     }
 
-    console.log("E-Delivery Name:", await eDeliveryNameField.inputValue());
+    //console.log("Vehicle Release Name:", await vehicleReleaseField.inputValue());
 
     if (await vehicleReleaseField.isVisible().catch(() => false)) {
       console.log(
@@ -212,7 +277,6 @@ export class ConfirmationNavigator {
 
     await this.scrollModal();
 
-    // Debugging
     console.log("Disclosure Name:", await disclosureNameField.inputValue());
 
     console.log(
@@ -394,7 +458,7 @@ export class ConfirmationNavigator {
 
       await this.safeClick(this.page.locator(locators.nxtButton));
     }
-    
+
     // ======================================================
     // TX Coverage Waivers (Conditional)
     // ======================================================
@@ -538,6 +602,11 @@ export class ConfirmationNavigator {
       }
     }
 
+    // ==================================================
+    // Payment Authorization
+    // ==================================================
+    await this.handlePaymentAuthorization();
+
     // ======================================================
     // Return To Producer Popup
     // ======================================================
@@ -634,12 +703,61 @@ export class ConfirmationNavigator {
   }
 
   // ==================================================
-  // Navigate to Coverage Summary (Highly Stable)
+  // Navigate to Coverage Summary - Highly Stable
   // ==================================================
   async goToCoverageSummary() {
-    // ==========================================
-    // Wait for Purchase Success Page
-    // ==========================================
+    // ==================================================
+    // Helper: Wait for MUI Backdrop / Loader
+    // ==================================================
+    const waitForBackdropToDisappear = async () => {
+      const backdrop = this.page.locator(".MuiBackdrop-root");
+
+      try {
+        const count = await backdrop.count();
+
+        if (count === 0) {
+          return;
+        }
+
+        for (let i = 0; i < count; i++) {
+          try {
+            await backdrop.nth(i).waitFor({
+              state: "hidden",
+              timeout: 15000,
+            });
+          } catch {
+            // Backdrop may have been removed from DOM.
+            // Continue execution.
+          }
+        }
+      } catch {
+        console.log("No active MUI backdrop.");
+      }
+    };
+
+    // ==================================================
+    // Helper: Wait for element to be visible + enabled
+    // ==================================================
+    const waitForReady = async (locator, timeout = 60000) => {
+      await locator.waitFor({
+        state: "attached",
+        timeout,
+      });
+
+      await locator.waitFor({
+        state: "visible",
+        timeout,
+      });
+
+      await expect(locator).toBeEnabled({
+        timeout: 30000,
+      });
+    };
+
+    // ==================================================
+    // 1. Wait for Purchase Success Page
+    // ==================================================
+
     const successIcon = this.page.locator('img[alt="Success Icon"]');
 
     await expect(successIcon).toBeVisible({
@@ -654,25 +772,15 @@ export class ConfirmationNavigator {
 
     console.log("Policy purchase confirmation page loaded.");
 
-    // ==========================================
-    // Wait For MUI Backdrop / Loader
-    // ==========================================
-    try {
-      const backdrop = this.page.locator(".MuiBackdrop-root");
+    // ==================================================
+    // 2. Wait for Loader / Backdrop
+    // ==================================================
 
-      if ((await backdrop.count()) > 0) {
-        await backdrop.last().waitFor({
-          state: "hidden",
-          timeout: 15000,
-        });
-      }
-    } catch {
-      console.log("No active backdrop found.");
-    }
+    await waitForBackdropToDisappear();
 
-    // ==========================================
-    // Go To Policy Page
-    // ==========================================
+    // ==================================================
+    // 3. Navigate to Policy Page
+    // ==================================================
 
     let policyPageOpened = false;
 
@@ -680,111 +788,158 @@ export class ConfirmationNavigator {
       try {
         console.log(`Policy Page Click Attempt ${attempt}`);
 
+        // IMPORTANT:
+        // Re-create locator every attempt because React
+        // may replace the element during re-render.
         const policyBtn = this.page.locator(locators.policyPageBtn);
 
-        await policyBtn.waitFor({
-          state: "visible",
-          timeout: 60000,
-        });
+        await waitForReady(policyBtn);
 
-        await expect(policyBtn).toBeEnabled({
-          timeout: 30000,
-        });
+        await waitForBackdropToDisappear();
 
         await policyBtn.scrollIntoViewIfNeeded();
 
-        const beforeUrl = this.page.url();
+        console.log("Policy Page button is visible and enabled.");
 
-        console.log("URL Before Click:", beforeUrl);
+        // ------------------------------------------
+        // Normal Playwright click
+        // ------------------------------------------
 
-        console.log("Button Count:", await policyBtn.count());
-        console.log("Visible:", await policyBtn.isVisible());
-        console.log("Enabled:", await policyBtn.isEnabled());
+        await policyBtn.click({
+          timeout: 20000,
+        });
 
-        // Native DOM click (works better with MUI buttons)
-        await policyBtn.evaluate((el) => el.click());
+        console.log("Policy Page button clicked.");
 
-        console.log("Policy Page button clicked");
+        // ------------------------------------------
+        // Wait for Policy page / Coverage Summary
+        // ------------------------------------------
 
-        // Wait for URL change
-        await this.page.waitForFunction(
-          (oldUrl) => window.location.href !== oldUrl,
-          beforeUrl,
-          {
-            timeout: 60000,
-          },
-        );
+        const coverageSummary = this.page.locator(locators.coverageSummaryBtn);
 
-        console.log("Navigation detected");
+        try {
+          await coverageSummary.waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
 
-        const afterUrl = this.page.url();
+          console.log("Policy page loaded successfully.");
 
-        console.log("URL After Click:", afterUrl);
+          policyPageOpened = true;
+          break;
+        } catch {
+          // If Coverage Summary is not immediately
+          // visible, wait for DOM to settle.
+          await this.page
+            .waitForLoadState("domcontentloaded", {
+              timeout: 30000,
+            })
+            .catch(() => {});
 
-        policyPageOpened = true;
-        break;
+          await waitForBackdropToDisappear();
+
+          await coverageSummary.waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          console.log("Policy page loaded successfully.");
+
+          policyPageOpened = true;
+          break;
+        }
       } catch (error) {
         console.log(
-          `Policy Page Click Attempt ${attempt} Failed: ${error.message}`,
+          `Policy Page Click Attempt ${attempt} Failed: ${
+            error?.message || error
+          }`,
         );
 
         await this.page.screenshot({
-          path: `PolicyPage_Attempt_${attempt}.png`,
+          path: `PolicyPage_Attempt_${attempt}_${Date.now()}.png`,
           fullPage: true,
         });
 
-        if (attempt < 3) {
-          console.log("Retrying...");
-        } else {
-          throw new Error(`POLICY_PAGE_NAVIGATION_FAILED\n${error.message}`);
+        if (attempt === 3) {
+          throw new Error(
+            `POLICY_PAGE_NAVIGATION_FAILED\n${error?.message || error}`,
+          );
         }
+
+        console.log("Policy page navigation failed. Retrying...");
+
+        await waitForBackdropToDisappear();
       }
     }
+
+    // ==================================================
+    // 4. Final Policy Page Validation
+    // ==================================================
 
     if (!policyPageOpened) {
       throw new Error("POLICY_PAGE_NAVIGATION_FAILED");
     }
 
-    // ==========================================
-    // Coverage Summary
-    // ==========================================
-    const coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+    // ==================================================
+    // 5. Locate Coverage Summary
+    // ==================================================
+
+    let coverageSummary = this.page.locator(locators.coverageSummaryBtn);
 
     let coverageVisible = false;
 
+    // ==================================================
+    // 6. Wait for Coverage Summary
+    // ==================================================
+
     try {
-      await coverageSummary.waitFor({
-        state: "visible",
-        timeout: 60000,
-      });
+      await waitForBackdropToDisappear();
+
+      await waitForReady(coverageSummary, 60000);
 
       coverageVisible = true;
-    } catch {
-      console.log(
-        "Coverage Summary not visible after navigation. Reloading...",
-      );
+
+      console.log("Coverage Summary button is ready.");
+    } catch (error) {
+      console.log("Coverage Summary not ready after navigation.");
+
+      console.log("Reloading Policy page once...");
     }
 
-    // ==========================================
-    // Reload Once If Coverage Summary Missing
-    // ==========================================
+    // ==================================================
+    // 7. Reload Once If Coverage Summary Is Missing
+    // ==================================================
+
     if (!coverageVisible) {
       await this.page.reload({
-        waitUntil: "networkidle",
+        waitUntil: "domcontentloaded",
         timeout: 60000,
       });
 
+      console.log("Policy page reloaded.");
+
+      await waitForBackdropToDisappear();
+
+      // IMPORTANT:
+      // Re-create locator after reload.
+      coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+
       try {
-        await coverageSummary.waitFor({
-          state: "visible",
-          timeout: 30000,
-        });
+        await waitForReady(coverageSummary, 60000);
 
         coverageVisible = true;
-      } catch {
+
+        console.log("Coverage Summary found after reload.");
+      } catch (error) {
+        console.log("Coverage Summary still not available.");
+
         coverageVisible = false;
       }
     }
+
+    // ==================================================
+    // 8. Coverage Summary Not Found
+    // ==================================================
 
     if (!coverageVisible) {
       await this.page.screenshot({
@@ -795,20 +950,168 @@ export class ConfirmationNavigator {
       throw new Error("COVERAGE_SUMMARY_NOT_FOUND");
     }
 
-    console.log("Coverage Summary found.");
+    // ==================================================
+    // 9. Coverage Summary Content Locator
+    // ==================================================
 
-    await coverageSummary.scrollIntoViewIfNeeded();
+    const coverageTotal = this.page.locator('[data-test="coverages-total"]');
 
-    await expect(coverageSummary).toBeVisible({
+    // ==================================================
+    // 10. Click Coverage Summary
+    // ==================================================
+
+    let coverageClicked = false;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Coverage Summary Click Attempt ${attempt}`);
+
+        // ------------------------------------------
+        // IMPORTANT:
+        // Re-create locator every attempt.
+        // ------------------------------------------
+
+        coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+
+        // ------------------------------------------
+        // Wait for UI
+        // ------------------------------------------
+
+        await waitForBackdropToDisappear();
+
+        await waitForReady(coverageSummary, 30000);
+
+        await coverageSummary.scrollIntoViewIfNeeded();
+
+        // ------------------------------------------
+        // Normal Playwright click
+        // ------------------------------------------
+
+        console.log("Attempting normal Coverage Summary click...");
+
+        await coverageSummary.click({
+          timeout: 20000,
+        });
+
+        console.log("Coverage Summary button clicked.");
+
+        // ------------------------------------------
+        // IMPORTANT:
+        // Validate actual result of click
+        // ------------------------------------------
+
+        console.log("Waiting for Coverage Summary content...");
+
+        await expect(coverageTotal).toBeVisible({
+          timeout: 30000,
+        });
+
+        console.log("Coverage Summary content is visible.");
+
+        coverageClicked = true;
+
+        break;
+      } catch (error) {
+        console.log(
+          `Coverage Summary Click Attempt ${attempt} Failed: ${
+            error?.message || error
+          }`,
+        );
+
+        // ------------------------------------------
+        // Screenshot for debugging
+        // ------------------------------------------
+
+        await this.page.screenshot({
+          path: `CoverageSummary_Click_Attempt_${attempt}_${Date.now()}.png`,
+          fullPage: true,
+        });
+
+        // ------------------------------------------
+        // If this is the final attempt, try one
+        // controlled force click before failing.
+        // ------------------------------------------
+
+        if (attempt === 3) {
+          console.log("Normal click failed 3 times.");
+
+          console.log("Trying final force click...");
+
+          try {
+            coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+
+            await waitForBackdropToDisappear();
+
+            await coverageSummary.waitFor({
+              state: "visible",
+              timeout: 15000,
+            });
+
+            await coverageSummary.scrollIntoViewIfNeeded();
+
+            await coverageSummary.click({
+              force: true,
+              timeout: 15000,
+            });
+
+            console.log("Coverage Summary force click executed.");
+
+            // --------------------------------------
+            // Validate actual content
+            // --------------------------------------
+
+            await expect(coverageTotal).toBeVisible({
+              timeout: 30000,
+            });
+
+            console.log(
+              "Coverage Summary content is visible after force click.",
+            );
+
+            coverageClicked = true;
+
+            break;
+          } catch (forceError) {
+            await this.page.screenshot({
+              path: `CoverageSummary_ForceClick_Failed_${Date.now()}.png`,
+              fullPage: true,
+            });
+
+            throw new Error(
+              `COVERAGE_SUMMARY_CLICK_FAILED\n` +
+                `Normal Click Error:\n${error?.message || error}\n\n` +
+                `Force Click Error:\n${forceError?.message || forceError}`,
+            );
+          }
+        }
+
+        // ------------------------------------------
+        // Retry
+        // ------------------------------------------
+
+        console.log("Coverage Summary click failed. Retrying...");
+
+        await waitForBackdropToDisappear();
+
+        // Re-create locator on retry
+        coverageSummary = this.page.locator(locators.coverageSummaryBtn);
+      }
+    }
+
+    // ==================================================
+    // 11. Final Validation
+    // ==================================================
+
+    if (!coverageClicked) {
+      throw new Error("COVERAGE_SUMMARY_CLICK_FAILED");
+    }
+
+    // ==================================================
+    // 12. Final Coverage Summary Validation
+    // ==================================================
+
+    await expect(coverageTotal).toBeVisible({
       timeout: 30000,
-    });
-
-    await coverageSummary.click({
-      timeout: 30000,
-    });
-
-    await this.page.waitForLoadState("networkidle", {
-      timeout: 60000,
     });
 
     console.log("Coverage Summary opened successfully.");

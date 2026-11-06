@@ -91,31 +91,64 @@ export class NameInsuredNavigator {
   // Named Owner Questions
   // ==================================================
   async namedOwnerQuestions(policyData) {
-    // Column renamed in TC_Template: "Submission for a Named Owner policy?" → "Named Owner?"
-    const namedOwnerValue = String(policyData["Named Owner?"] || "")
+    console.log("Policy Data:", policyData);
+    const rawValue = policyData["Named Owner?"];
+    console.log("Excel 'Named Owner?' Value :", rawValue);
+
+    const namedOwnerValue = String(rawValue || "")
       .trim()
       .toLowerCase();
 
+    console.log("Normalized Value :", namedOwnerValue);
+
+    // Wait for first question
     await this.page
       .locator(locators.namedOwnerYes)
       .waitFor({ state: "visible", timeout: 50000 });
 
     if (namedOwnerValue === "no") {
-      await this.safeClick(this.page.locator(locators.namedOwnerNo));
-      console.log("Named Owner = NO");
+      const firstYes = this.page.locator(locators.namedOwnerYes);
 
-      await this.page
-        .locator(locators.vehicleRegisteredNo)
-        .waitFor({ state: "visible", timeout: 50000 });
+      console.log(
+        "First Question Selected Before Click :",
+        await firstYes.isChecked().catch(() => "Unable to determine"),
+      );
 
-      await this.safeClick(this.page.locator(locators.vehicleRegisteredNo));
+      console.log("Clicking YES on First Question...");
+      await this.safeClick(firstYes);
 
-      console.log("Vehicle Registered = NO");
+      console.log(
+        "First Question Selected After Click :",
+        await firstYes.isChecked().catch(() => "Unable to determine"),
+      );
+
+      // Wait for second question
+      await this.page.locator(locators.vehicleRegisteredYes).waitFor({
+        state: "visible",
+        timeout: 50000,
+      });
+
+      const secondNo = this.page.locator(locators.vehicleRegisteredNo);
+
+      console.log(
+        "Second Question Selected Before Click :",
+        await secondNo.isChecked().catch(() => "Unable to determine"),
+      );
+
+      console.log("Clicking YES on Second Question...");
+      await this.safeClick(secondNo);
+
+      console.log(
+        "Second Question Selected After Click :",
+        await secondNo.isChecked().catch(() => "Unable to determine"),
+      );
+
+      console.log("===== NON OWNER FLOW COMPLETED =====");
     } else {
-      console.log("Named Owner = YES (default selected)");
+      console.log("===== NAMED OWNER FLOW =====");
+      console.log("Default NO option remains selected.");
     }
   }
-
   // ==================================================
   // Start New Submission
   // ==================================================

@@ -11,9 +11,27 @@ export class DriverNavigator {
   async completeDriverSection(driver, driverIndex, totalDrivers) {
     // ─── OPEN DRIVER DRAWER ────────────────────────────────────────────────
     if (driverIndex === 0) {
-      await this.page.locator(locators.updateDriver).click({ timeout: 10000 });
+      const updateDriver = this.page.locator(locators.updateDriver);
+
+      await updateDriver.waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
+
+      await updateDriver.click({
+        timeout: 10000,
+      });
     } else {
-      await this.page.locator(locators.addDriverBtn).click({ timeout: 10000 });
+      const addDriver = this.page.locator(locators.addDriverBtn);
+
+      await addDriver.waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
+
+      await addDriver.click({
+        timeout: 10000,
+      });
     }
 
     // ─── BASIC DETAILS ─────────────────────────────────────────────────────
@@ -40,10 +58,59 @@ export class DriverNavigator {
       .fill(driver.dob.toString().replace(/-/g, "/"));
 
     if (driverIndex > 0) {
-      const relation = driver.relationship || "Spouse";
-      await this.page
-        .locator(locators.driverRelation)
-        .selectOption({ label: relation });
+      // ─── DRIVER RELATIONSHIP ─────────────────────────────────────────────
+        const relation = driver.relationship?.toString().trim();
+
+        console.log(
+          `Driver ${driverIndex + 1} - Relationship from Excel:`,
+          JSON.stringify(relation),
+        );
+
+        if (!relation) {
+          throw new Error(
+            `Relationship to Named Insured is missing for Driver ${driverIndex + 1}`,
+          );
+        }
+
+        const relationshipDropdown = this.page.locator(locators.driverRelation);
+
+        await relationshipDropdown.waitFor({
+          state: "visible",
+          timeout: 30000,
+        });
+
+        await expect(relationshipDropdown).toBeEnabled({
+          timeout: 10000,
+        });
+
+        // Excel contains the visible text, e.g. "Child"
+        await relationshipDropdown.selectOption({
+          label: relation,
+        });
+
+        const selectedValue = await relationshipDropdown.inputValue();
+
+        console.log(
+          `Driver ${driverIndex + 1} - Relationship selected:`,
+          JSON.stringify(selectedValue),
+        );
+
+        const selectedLabel = await relationshipDropdown
+          .locator("option:checked")
+          .textContent();
+
+        console.log(
+          `Driver ${driverIndex + 1} - Relationship selected label:`,
+          JSON.stringify(selectedLabel?.trim()),
+        );
+
+        if (selectedLabel?.trim() !== relation) {
+          throw new Error(
+            `Failed to select Relationship for Driver ${driverIndex + 1}. ` +
+              `Expected label: "${relation}", ` +
+              `Actual label: "${selectedLabel?.trim()}"`,
+          );
+        }
     }
 
     // ─── LICENSE STATE (MUI AUTOCOMPLETE) ─────────────────────────────────
@@ -78,23 +145,26 @@ export class DriverNavigator {
       .locator(locators.driverLicenseMonths)
       .fill(driver.licenseMonths.toString());
 
-    // ───  CALIFORNIA FIELDS ──────────────────────────────────────────────
+    // ─── CALIFORNIA FIELDS ────────────────────────────────────────────────
     if (this.state === "California") {
-      console.log("Handling California driver fields");
-
-      // Driving Experience
       await this.page
         .locator(locators.driverExperience)
         .fill(driver.drivingExp?.toString() || "1");
+
       await this.handleAge55Plus(driver);
       await this.handleGoodStudent(driver);
       await this.handleYouthfulDriver(driver);
     }
 
-    // ─── COMMON SR22 (BOTH STATES) ─────────────────────────────────────────
+    // ─── COMMON SR22 ──────────────────────────────────────────────────────
     await this.handleSR22(driver);
 
-    // ─── TEXAS ONLY ────────────────────────────────────────────────────────
+    // ─── ARIZONA FIELDS ────────────────────────────────────────────────
+    if (this.state === "Arizona") {
+      await this.handlePhysiciansReport(driver);
+    }
+
+    // ─── TEXAS ONLY ───────────────────────────────────────────────────────
     if (this.state === "Texas") {
       await this.handleDefensiveDriver(driver);
       await this.handleDrugDiscount(driver);
@@ -102,22 +172,20 @@ export class DriverNavigator {
 
     // ─── OCCUPATION ───────────────────────────────────────────────────────
     await this.page.locator(locators.driverOccupation).click();
+
     await this.page
       .locator(locators.selectOccupation(driver.occupation))
       .click();
 
     // ─── SAVE DRIVER ──────────────────────────────────────────────────────
-    await this.page.locator(locators.driverSubmitBtn).click({ timeout: 10000 });
+    await this.page.locator(locators.driverSubmitBtn).click({
+      timeout: 10000,
+    });
 
-    await this.page
-      .locator(locators.driverSubmitBtn)
-      .waitFor({ state: "hidden", timeout: 10000 });
-
-    // ─── NEXT BUTTON (LAST DRIVER ONLY) ───────────────────────────────────
-    // if (driverIndex === totalDrivers - 1) {
-    //   await this.page.locator(locators.nextButton).click({ timeout: 10000 });
-    //   await this.page.locator(locators.nextButton).click({ timeout: 10000 });
-    // }
+    await this.page.locator(locators.driverSubmitBtn).waitFor({
+      state: "hidden",
+      timeout: 10000,
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -204,6 +272,21 @@ export class DriverNavigator {
 
     if (!(await checkbox.isChecked())) {
       await checkbox.click({ force: true });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // ARIZONA - PHYSICIAN'S REPORT
+  // ────────────────────────────────────────────────────────────────────────
+  async handlePhysiciansReport(driver) {
+    if (Number(driver.physiciansReport) !== 1) return;
+
+    const checkbox = this.page.locator(locators.physiciansReportCheckbox);
+
+    await expect(checkbox).toBeVisible({ timeout: 50000 });
+
+    if (!(await checkbox.isChecked())) {
+      await checkbox.check();
     }
   }
 }

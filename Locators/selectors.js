@@ -23,8 +23,9 @@ export const locators = {
 
   // ================= Named Owner Questions =================
 
-  namedOwnerYes: '[data-test="f_pol_vehicle_owner_type_true"]',
-  namedOwnerNo: '[data-test="f_pol_vehicle_owner_type_false"]',
+  namedOwnerNo: '[data-test="f_pol_vehicle_owner_type_true"]',
+  namedOwnerYes: '[data-test="f_pol_vehicle_owner_type_false"]',
+  vehicleRegisteredYes: '[data-test="f_pol_vehicle_regular_access_true"]',
   vehicleRegisteredNo: '[data-test="f_pol_vehicle_regular_access_false"]',
   fName: `[data-test="f_firstName"]`,
   lName: `[data-test="f_lastName"]`,
@@ -75,6 +76,7 @@ export const locators = {
   driverLicenseMonths: `//input[@id='driver_license_month']`,
   licenseTxtBox: `//input[@id='driver_license_number']`,
   sr22CheckBox: `[data-test="f_driver_sr22"]`,
+  physiciansReportCheckbox: '[data-test="f_driver_physicians_report"] input',
   age55Checkbox: '[data-test="f_driver_mature_driver_improvement_course"]',
   goodStudentCheckbox: '[data-test="f_driver_good_student"]',
   youthfulDriverCheckbox: '[data-test="f_driver_drive_training"]',
@@ -146,8 +148,7 @@ export const locators = {
   pipToggle:
     '[data-test="coverage-item-switch-Personal Injury Protection (PIP)"]',
 
-  medpayToggle:
-    '[data-test="coverage-item-switch-Medical Payments (MEDPAY)"]',
+  medpayToggle: '[data-test="coverage-item-switch-Medical Payments (MEDPAY)"]',
 
   medpayLimit: `[id="Medical Payments (MEDPAY)-limit"]`,
 
@@ -157,8 +158,7 @@ export const locators = {
   umpdToggle:
     '[data-test="coverage-item-switch-Uninsured Motorist Property Damage (UMPD)"]',
 
-  motorclubToggle:
-    '[data-test="coverage-item-switch-Motorclub"]',
+  motorclubToggle: '[data-test="coverage-item-switch-Motorclub"]',
 
   compToggle: (v) =>
     `[data-test="coverage-item-switch-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"]`,
@@ -185,8 +185,13 @@ export const locators = {
   compDeductible: (v) =>
     `[data-test="coverage-item-deductible-Other than Collision (Comprehensive Coverage)-${getIndex(v)}"]`,
 
+  medPayLimit: '[id="Medical Payments (MEDPAY)-limit"]',
+
   collDeductible: (v) =>
     `[data-test="coverage-item-deductible-Collision-${getIndex(v)}"]`,
+
+  fullSafetyGlassToggle: (v) =>
+    `[data-test="coverage-item-switch-Full Safety Glass-${getIndex(v)}"]`,
 
   cdwToggle: `[data-test="coverage-item-switch-CDW"]`,
   tripleDedToggle: `[data-test="coverage-item-switch-Triple Deductible"]`,
@@ -235,12 +240,12 @@ export const locators = {
   eSignatureCheckbox: `//div[span[contains(text(),'Please')]]/div/div[4]//input`,
   vehicleReleaseCheckbox: `//span[contains(text(),'By')]/preceding-sibling::span/input`,
   marketingConsentCheckbox: `//span[contains(text(),'I, ')]/preceding-sibling::span/input`,
-  electronicDeliveryCheckbox: `//span[strong[contains(text(),'Electronic')]]/preceding-sibling::span/input`,
+  //electronicDeliveryCheckbox: `//span[contains(text(),'By')]/preceding-sibling::span/input`,
   fullLegalName: (placeholder) => `//input[@placeholder='${placeholder}']`,
   fullLegalNamePlaceholder: `//div[span[contains(text(),'Full Legal Name')]]//input[@placeholder]`,
   producerFullLegalNamePlaceholder: `//div[span[contains(text(),'Legal')]]//input`,
   allFullLegalNameFields: `//input[@placeholder]`,
-  eDeliveryNameField: `//input[contains(@aria-label,'e-delivery')]`,
+  eDeliveryNameField: `//input[@aria-label="Full legal name for e-delivery consent"]`,
   vehicleReleaseNameField: `//input[contains(@aria-label,'vehicle release')]`,
   consolidatedDisclosureNameField: `//span[contains(text(),'Full Legal Name')]/following::input[1]`,
   selectAllCheckbox: `//label[span[contains(text(),'Select All')]]//input[@type='checkbox']`,
@@ -251,6 +256,8 @@ export const locators = {
   umuimWaiverNameField: "//input[contains(@aria-label,'UM/UIM Waiver')]",
   umuimWaiverAgreement:
     "//h5[contains(.,'UM/UIM Waiver')]/following::input[@type='checkbox'][1]",
+  paymentAuthorizationCheckbox:
+    '//span[.//input[@type="checkbox"]][following-sibling::span[contains(., "Electronic Funds Transfer")]]//input[@type="checkbox"]',
   // ======================================================
   // CA Independent Disclosures
   // ======================================================
@@ -275,9 +282,9 @@ export const locators = {
   PurchasePolicyBtn: `button[type='button']:has-text("Purchase Policy")`,
   prodNamedInsured: `//*[@data-test="navigation-stepper-step-named-insured"]//p[2]`,
   prodEffectiveDate:
-  '//span[normalize-space()="Effective Date"]/following-sibling::span[1]',
+    '//span[normalize-space()="Effective Date"]/following-sibling::span[1]',
   expirationDate:
-  '//span[normalize-space()="Expiration Date"]/following-sibling::span[1]',
+    '//span[normalize-space()="Expiration Date"]/following-sibling::span[1]',
   selectedPaymentOption: `//tr[.//input[@type="checkbox" and @checked]]/td[2]`,
 
   // ===============================  Success Page After Policy Creation  ================================
@@ -285,7 +292,7 @@ export const locators = {
   policyNumber: `//div[span[text()='Policy Number']]/following-sibling::div/span`,
   insuredName: `//div[span[text()='Named Insured']]/following-sibling::div/span`,
   policyTerm: `//div[span[text()='Policy Term']]/following-sibling::div/span`,
-  paymentPlan: `//div[span[text()='Payment Plan']]/following-sibling::div/span`,  
+  paymentPlan: `//div[span[text()='Payment Plan']]/following-sibling::div/span`,
   totalPremium: `//div[span[text()='Premium Total']]/following-sibling::div/span`,
   policyPageBtn: `//button[@data-test='go-to-policy-page-btn']`,
 
@@ -311,6 +318,7 @@ export const locators = {
   rentalPremium: `[data-test="coverage-premium-0-Rental Reimbursement"]`,
   roadPremium: `[data-test="coverage-premium-0-Roadside Assistance"]`,
   coveragePremium: `[data-test="coverages-total"]`,
+  fullSafetyGlassPremium: `[data-test="coverage-premium-0-Full Safety Glass"]`,
   frFee: `[data-test="tax-fee-Financial Responsibility Fee"]`,
   fraudFee: `[data-test='tax-fee-Fraud Fee']`,
   policyFee: `[data-test='tax-fee-Policy Fee']`,

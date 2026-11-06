@@ -3,12 +3,14 @@ import xlsx from "xlsx";
 import { credentials } from "../config/credentials.js";
 import { login } from "../helpers/loginHelper.js";
 import { FakerData } from "../testData/fakerData.js";
-import { openWorkbook } from "../helpers/excelReader.js";
+import {
+  openWorkbook,
+  filterTestCasesBySuite,
+} from "../helpers/excelReader.js";
 import { buildRaterData } from "../helpers/raterHelper.js";
 import {
   writeRow,
   saveWorkbook,
-  sortSheetByTestCase,
 } from "../helpers/excelWriter.js";
 import { getPremium } from "../helpers/uiHelper.js";
 import { locators } from "../Locators/selectors.js";
@@ -57,7 +59,37 @@ if (!ws_tc) {
 }
 
 // rawRows[0..3] = 4-row header block; rawRows[4+] = test case data rows
-const rawRows = xlsx.utils.sheet_to_json(ws_tc, { header: 1, defval: "" });
+//const rawRows = xlsx.utils.sheet_to_json(ws_tc, { header: 1, defval: "" });
+
+// Calculate actual used range instead of trusting Excel's !ref
+const cellKeys = Object.keys(ws_tc).filter((key) => !key.startsWith("!"));
+
+let maxRow = 0;
+let maxCol = 0;
+
+for (const key of cellKeys) {
+  const { r, c } = xlsx.utils.decode_cell(key);
+
+  if (r > maxRow) maxRow = r;
+  if (c > maxCol) maxCol = c;
+}
+
+const actualRange = xlsx.utils.encode_range({
+  s: { r: 0, c: 0 },
+  e: { r: maxRow, c: maxCol },
+});
+
+console.log("Excel declared range:", ws_tc["!ref"]);
+console.log("Excel actual range:", actualRange);
+console.log("Max row:", maxRow + 1);
+console.log("Max column:", maxCol + 1);
+
+const rawRows = xlsx.utils.sheet_to_json(ws_tc, {
+  range: actualRange,
+  header: 1,
+  defval: "",
+  raw: false,
+});
 
 // Row index 2 (0-based) = Row 3 of the sheet = column headers
 const headers = rawRows[2];
@@ -69,15 +101,23 @@ const excelData = rawRows
   .filter((r) => r[0])
   .map((r) => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ""])));
 
+const filteredData = filterTestCasesBySuite(excelData);
+
+filteredData.forEach((row, index) => {
+  row.outputRow = index + 2;
+});
+
+console.log("Execution Suite:", process.env.EXECUTION_SUITE || "ALL");
 console.log("Total Rows:", excelData.length);
+console.log("Rows to Execute:", filteredData.length);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TEST LOOP
 // ─────────────────────────────────────────────────────────────────────────────
-for (let index = 0; index < excelData.length; index++) {
+for (let index = 0; index < filteredData.length; index++) {
   // raw row — passed as-is to navigators that read column names directly
   // (State, Program, "Effective Date", address fields, coverage fields, UW, etc.)
-  const row = excelData[index];
+  const row = filteredData[index];
 
   // Structured objects from buildRaterData():
   //   policy   — 16 policy-level rating fields
@@ -92,11 +132,13 @@ for (let index = 0; index < excelData.length; index++) {
     `TC${String(index + 1).padStart(3, "0")}`;
 
   test(`Create Policy ${tcLabel}`, async ({ browser }) => {
+    /*
     // Skip if no VIN
     if (!vehicles[0]?.vin) {
       console.log("Skipping row due to missing VIN");
       test.skip();
     }
+      */
 
     // ─── RETRY CONFIG ───────────────────────────────────────────────────────
     const MAX_RETRIES = 3;
@@ -122,6 +164,7 @@ for (let index = 0; index < excelData.length; index++) {
         const driverNavigator = new DriverNavigator(page, row["State"]);
 
         const violationsNavigator = new ViolationsNavigator(page);
+        await page.waitForTimeout(10000);
         const finalDetailsNavigator = new FinalDetailsNavigator(page);
         const coverageNavigator = new CoverageNavigator(page);
         const underwriterNavigator = new UnderwriterNavigator(page);
@@ -140,22 +183,42 @@ for (let index = 0; index < excelData.length; index++) {
         await nameInsured.completeNamedInsured(row, insuredData);
         await addressNavigator.enterAddress(row);
 
-        // Vehicle loop — addVehicle receives the structured vehicle object plus
-        // its index and total count so the navigator knows when to click Next.
-        // The same [data-test="add-vehicle-button"] is used for every vehicle;
-        // the first shows as "Update", subsequent as "+ Add vehicle".
-        for (let v = 0; v < vehicles.length; v++) {
-          console.log(` Adding Vehicle ${v + 1}`);
-          await vehicleNavigator.addVehicle(vehicles[v], v, vehicles.length);
+        // ─── VEHICLE SECTION ──────────────────────────────────────────────────────
+        // Named Owner = Yes  → Vehicle/VIN is required and vehicles are added.
+        // Named Owner = No + Non-Owner = Yes → Skip Vehicle/VIN and move to Driver.
+
+        const namedOwnerValue = String(row["Named Owner?"] || "")
+          .trim()
+          .toLowerCase();
+
+        const nonOwnerValue = String(row["Non-Owner"] || "")
+          .trim()
+          .toLowerCase();
+
+        if (namedOwnerValue === "yes") {
+          // VIN is mandatory for Named Owner policies.
+          if (!vehicles[0]?.vin) {
+            console.log("VIN missing for Named Owner. Skipping test.");
+            test.skip();
+          }
+
+          // Add all vehicles configured for the test case.
+          for (let v = 0; v < vehicles.length; v++) {
+            await vehicleNavigator.addVehicle(vehicles[v], v, vehicles.length);
+          }
+        } else if (nonOwnerValue === "yes") {
+          // Non-Owner policy does not require a vehicle/VIN.
+          // Skip Vehicle section and continue directly to Driver section.
+          console.log("Non-Owner = Yes → Skipping Vehicle/VIN section.");
         }
 
-        // Driver loop — completeDriverSection receives the structured driver
-        // object plus index and total count.
-        //   driverIndex 0 → "Update" button (primary insured, pre-populated)
-        //   driverIndex 1+ → "Add driver" button (additional drivers)
-        //   Next×2 is only clicked after the last driver.
+        // ─── DRIVER SECTION ───────────────────────────────────────────────────────
+        // Driver section is executed after Vehicle section.
+        // For Non-Owner policies, execution reaches here directly without Vehicle.
+
         for (let d = 0; d < drivers.length; d++) {
           console.log(` Adding Driver ${d + 1}`);
+
           await driverNavigator.completeDriverSection(
             drivers[d],
             d,
@@ -167,6 +230,26 @@ for (let index = 0; index < excelData.length; index++) {
         await finalDetailsNavigator.fillPriorCoverageDetails(row);
         await finalDetailsNavigator.continueToCoverage();
         await coverageNavigator.applyCoverages(row);
+
+        if (nonOwnerValue === "yes") {
+          const premiumElements = page.locator(
+            '[data-test^="coverage-premium-"]',
+          );
+
+          await premiumElements.first().waitFor({
+            state: "visible",
+            timeout: 15000,
+          });
+
+          const premiums = await premiumElements.allTextContents();
+
+          const totalPremium = premiums.reduce((sum, value) => {
+            return sum + (parseFloat(value.replace(/[$,]/g, "")) || 0);
+          }, 0);
+
+          console.log("Non-Owner Coverage Premiums:", premiums);
+          console.log("Non-Owner Total Premium:", totalPremium.toFixed(2));
+        }
 
         try {
           await page.locator(locators.quoteNumber).waitFor({
@@ -200,19 +283,50 @@ for (let index = 0; index < excelData.length; index++) {
 
           console.log("Quote Number:", quoteNumber);
 
-          // Wait until Pricing Breakdown is loaded
-          await page.locator(locators.vehicleCoveragePremiums).first().waitFor({
-            state: "visible",
-            timeout: 30000,
-          });
+          // ─── CAPTURE PREMIUM ──────────────────────────────────────────
+          let totalCoveragePremium;
 
-          // Capture Total Coverage Premium
-          const totalCoveragePremium = await getTotalCoveragePremium(
-            page,
-            locators.vehicleCoveragePremiums,
-          );
+          if (nonOwnerValue === "yes") {
+            // Non-Owner: capture all coverage premiums
+            const premiumLocators = page.locator(
+              '[data-test^="coverage-premium-"]:visible',
+            );
 
-          console.log("Total Coverage Premium:", totalCoveragePremium);
+            await premiumLocators.first().waitFor({
+              state: "visible",
+              timeout: 30000,
+            });
+
+            const premiums = await premiumLocators.allTextContents();
+
+            totalCoveragePremium = premiums.reduce((total, premium) => {
+              return total + (parseFloat(premium.replace(/[$,]/g, "")) || 0);
+            }, 0);
+
+            totalCoveragePremium = Math.round(totalCoveragePremium);
+
+            console.log("Non-Owner Premiums:", premiums);
+            console.log(
+              "Non-Owner Total Coverage Premium:",
+              totalCoveragePremium,
+            );
+          } else {
+            // Named Owner: existing vehicle-based calculation
+            await page
+              .locator(locators.vehicleCoveragePremiums)
+              .first()
+              .waitFor({
+                state: "visible",
+                timeout: 30000,
+              });
+
+            totalCoveragePremium = await getTotalCoveragePremium(
+              page,
+              locators.vehicleCoveragePremiums,
+            );
+
+            console.log("Total Coverage Premium:", totalCoveragePremium);
+          }
 
           // ─── WRITE QUOTE RESULTS (PRODUCTION) ──────────────────────────────
 
@@ -241,11 +355,9 @@ for (let index = 0; index < excelData.length; index++) {
               "Output_PolicyUIPremium",
             );
 
-            writeRow(uiPremiumSheet, uiPremiumData, tcNo);
-            saveWorkbook(workbook, resultPath);
+            writeRow(uiPremiumSheet, uiPremiumData, tcNo, row.outputRow);
 
-            const verify = xlsx.readFile(resultPath);
-            const verifySheet = verify.Sheets["Output_PolicyUIPremium"];
+            saveWorkbook(workbook, resultPath);
           } finally {
             await excelLock.unlock();
           }
@@ -388,7 +500,8 @@ for (let index = 0; index < excelData.length; index++) {
             "Output_PolicyUIPremium",
           );
 
-          writeRow(uiPremiumSheet, uiPremiumData, tcNo);
+          writeRow(uiPremiumSheet, uiPremiumData, tcNo, row.outputRow);
+
           saveWorkbook(workbook, resultPath);
 
           const verify = xlsx.readFile(resultPath);

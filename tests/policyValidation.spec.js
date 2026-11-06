@@ -1,6 +1,7 @@
 import { test } from "@playwright/test";
 import { credentials } from "../config/credentials.js";
 import { getRaterPremium, buildRaterData } from "../helpers/raterHelper.js";
+import { filterTestCasesBySuite } from "../helpers/excelReader.js";
 import { createPremiumComparison } from "../helpers/excelWriter.js";
 
 import xlsx from "xlsx";
@@ -28,17 +29,23 @@ test("Create Rater File and Calculate Premium", async () => {
   const inputSheet = wb.Sheets["TC_Template"];
 
   if (!inputSheet) {
-    throw new Error(`Input sheet "TC_Template" not found in ${credentials.dataFile}`);
+    throw new Error(
+      `Input sheet "TC_Template" not found in ${credentials.dataFile}`,
+    );
   }
 
   // Read with header:1 to get raw row arrays, then manually build objects
   // using row 3 as the key source and row 5+ as data. sheet_to_json's built-in
   // range skipping cannot handle this 4-row header structure cleanly.
-  const rawRows = xlsx.utils.sheet_to_json(inputSheet, { header: 1, defval: "", raw: false });
+  const rawRows = xlsx.utils.sheet_to_json(inputSheet, {
+    header: 1,
+    defval: "",
+    raw: false,
+  });
   const templateHeaders = rawRows[2] || []; // row 3 (0-indexed: 2) = column headers
 
   const rows = rawRows
-    .slice(4)                               // skip title + categories + headers + type legend
+    .slice(4) // skip title + categories + headers + type legend
     .map((rowArr) => {
       const obj = {};
       templateHeaders.forEach((h, i) => {
@@ -49,9 +56,18 @@ test("Create Rater File and Calculate Premium", async () => {
       });
       return obj;
     })
-    .filter((row) => row["TC_ID"]);         // skip empty trailing rows at bottom of sheet
+    .filter((row) => row["TC_ID"]); // skip empty trailing rows at bottom of sheet
 
-  console.log("Headers in Input Sheet (first 10):", templateHeaders.slice(0, 10));
+  const filteredRows = filterTestCasesBySuite(rows);
+
+  console.log("Execution Suite:", process.env.EXECUTION_SUITE || "ALL");
+  console.log("Total Rows:", rows.length);
+  console.log("Rows to Execute:", filteredRows.length);
+
+  console.log(
+    "Headers in Input Sheet (first 10):",
+    templateHeaders.slice(0, 10),
+  );
   console.log("Rows Found:", rows.length);
 
   // =========================
@@ -82,8 +98,8 @@ test("Create Rater File and Calculate Premium", async () => {
   // =========================
   // Loop each TestCase
   // =========================
-  for (let index = 0; index < rows.length; index++) {
-    const row = rows[index];
+  for (let index = 0; index < filteredRows.length; index++) {
+    const row = filteredRows[index];
 
     // =========================
     // Read UI Output Excel
@@ -107,7 +123,7 @@ test("Create Rater File and Calculate Premium", async () => {
     // createPolicy.spec.js wrote into the output sheet. The match is now
     // always exact regardless of how many rows were skipped or their order.
     const uiByTcNo = new Map(
-      uiData.map((r) => [r["TestCase No"]?.toString().trim(), r])
+      uiData.map((r) => [r["TestCase No"]?.toString().trim(), r]),
     );
 
     // Read TC identity from TC_ID column.
@@ -163,18 +179,26 @@ test("Create Rater File and Calculate Premium", async () => {
     // command line. Multi-vehicle payloads (8 vehicles + 8 drivers) can exceed
     // Windows' 32,767-character CLI limit — temp file has no size restriction.
     // File is written to os.tmpdir() and deleted in the finally block below.
-    const tempJsonPath = path.join(os.tmpdir(), `rater_input_${testCaseId}.json`);
+    const tempJsonPath = path.join(
+      os.tmpdir(),
+      `rater_input_${testCaseId}.json`,
+    );
     console.log("[RATER] Input JSON:", tempJsonPath);
 
     try {
-      fs.writeFileSync(tempJsonPath, JSON.stringify(raterData, null, 2), "utf8");
+      fs.writeFileSync(
+        tempJsonPath,
+        JSON.stringify(raterData, null, 2),
+        "utf8",
+      );
 
       console.log("Executing Rater Script...");
       execSync(
         `powershell.exe -ExecutionPolicy Bypass -File "./rater.ps1" "${newRaterFile}" "${tempJsonPath}"`,
         { stdio: "inherit" },
       );
-    } finally {
+    } 
+    finally {
       // Delete the temp file whether rater.ps1 succeeded or failed —
       // prevents accumulation of JSON files in the OS temp directory.
       if (fs.existsSync(tempJsonPath)) {

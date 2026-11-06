@@ -55,7 +55,7 @@ import { comparePolicy } from "../helpers/comparisonEngine.js";
  * ============================================================
  */
 
-export function writeRow(sheet, rowData, tcNo) {
+export function writeRow(sheet, rowData, tcNo, outputRow = null) {
   // ==========================================================
   // Validate Sheet
   // ==========================================================
@@ -141,13 +141,28 @@ export function writeRow(sheet, rowData, tcNo) {
   // This avoids row shifting during parallel execution.
   // ==========================================================
   if (targetRow === null) {
-    const match = String(tcNo).match(/\d+/);
+    if (outputRow !== null) {
+      // Excel row 2 => zero-based row index 1
+      targetRow = outputRow - 1;
+    } else {
+      // Fallback to next empty row
+      targetRow = 1;
 
-    if (!match) {
-      throw new Error(`Invalid Test Case Number: ${tcNo}`);
+      while (true) {
+        const cellAddress = xlsx.utils.encode_cell({
+          r: targetRow,
+          c: tcColIndex,
+        });
+
+        const cell = sheet[cellAddress];
+
+        if (!cell || cell.v === undefined || String(cell.v).trim() === "") {
+          break;
+        }
+
+        targetRow++;
+      }
     }
-
-    targetRow = Number(match[0]);
   }
 
   console.log(`Writing ${tcNo} to Excel Row ${targetRow + 1}`);
@@ -475,11 +490,6 @@ export function buildComparisonJSON(policyNo, traceData) {
         if (!uiData || Object.keys(uiData).length === 0) {
           return;
         }
-
-        // ==================================
-        // OPTIONAL SKIP
-        // ==================================
-
         // ==================================
         // OPTIONAL SKIP
         // ==================================

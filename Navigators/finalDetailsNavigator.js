@@ -39,24 +39,70 @@ export class FinalDetailsNavigator {
 
       console.log("Selected : Bridger Insurance");
 
-      // Current Policy Number (Only for Bridger)
+      // Current Policy Number
       await this.page
         .locator(locators.priorCurrentPolicyNumber)
         .fill(String(testData["Prior Policy No"] ?? ""));
 
-      // Duration
-      await this.page
-        .locator(locators.priorCoverageDuration)
-        .selectOption(String(testData["Prior Cov Months"] ?? "0"));
+      // ============================================================
+      // Prior Coverage Duration
+      // ============================================================
 
+      const priorCovMonths = String(testData["Prior Cov Months"] ?? "").trim();
+
+      console.log("Prior Cov Months from Excel:", priorCovMonths);
+      console.log("Excel value type:", typeof testData["Prior Cov Months"]);
+
+      const durationDropdown = this.page.locator(
+        locators.priorCoverageDuration,
+      );
+
+      await durationDropdown.waitFor({
+        state: "visible",
+      });
+
+      console.log(
+        "Duration Options:",
+        await durationDropdown.locator("option").evaluateAll((options) =>
+          options.map((option) => ({
+            text: option.textContent?.trim(),
+            value: option.value,
+          })),
+        ),
+      );
+
+      await durationDropdown.selectOption({
+        value: priorCovMonths,
+      });
+
+      const selectedDuration = await durationDropdown.inputValue();
+
+      console.log(`Duration Expected: ${priorCovMonths}`);
+
+      console.log(`Duration Actual: ${selectedDuration}`);
+
+      if (selectedDuration !== priorCovMonths) {
+        throw new Error(
+          `Prior Cov Months was not selected. ` +
+            `Expected: ${priorCovMonths}, ` +
+            `Actual: ${selectedDuration}`,
+        );
+      }
+
+      // ============================================================
       // Expiration Date
+      // ============================================================
+
       if (testData["Prior Exp Date"]) {
         await this.page
           .locator(locators.priorCoverageExpirationDate)
           .fill(String(testData["Prior Exp Date"]));
       }
 
+      // ============================================================
       // BI Limits
+      // ============================================================
+
       await this.page
         .locator(locators.priorCurrentBILimits)
         .selectOption(String(testData["Prior BI Limits"] ?? ""));
@@ -65,7 +111,6 @@ export class FinalDetailsNavigator {
 
       return;
     }
-
     // ============================================================
     // 2 = Other Company
     // ============================================================
@@ -119,14 +164,62 @@ export class FinalDetailsNavigator {
   // ============================================================
 
   async continueToCoverage() {
-    await expect(this.page.locator(locators.nextButton)).toBeVisible({
+    const nextButton = this.page.locator(locators.nextButton);
+
+    // 1. Wait until Next is visible
+    await expect(nextButton).toBeVisible({
       timeout: 60000,
     });
 
-    await expect(this.page.locator(locators.nextButton)).toBeEnabled();
+    // 2. Wait until Next becomes enabled
+    await expect(nextButton).toBeEnabled({
+      timeout: 30000,
+    });
 
-    await this.page.locator(locators.nextButton).click({ timeout: 10000 });
+    // 3. Make sure the button is in the viewport
+    await nextButton.scrollIntoViewIfNeeded();
 
-    console.log("Final Details completed.");
+    // 4. Verify Playwright considers the button actionable
+    await nextButton.click({
+      trial: true,
+      timeout: 10000,
+    });
+
+    console.log("Next button is actionable. Clicking...");
+
+    // 5. Actual click
+    await nextButton.click({
+      timeout: 10000,
+    });
+    const coverageStep = this.page.getByText("Coverages", {
+      exact: true,
+    });
+
+    try {
+      await expect(coverageStep).toBeVisible({
+        timeout: 15000,
+      });
+
+      console.log("Final Details completed. Coverage step opened.");
+    } catch (error) {
+      console.log("Next click did not move to Coverage. Retrying...");
+      await expect(nextButton).toBeVisible({
+        timeout: 10000,
+      });
+
+      await expect(nextButton).toBeEnabled({
+        timeout: 10000,
+      });
+
+      await nextButton.scrollIntoViewIfNeeded();
+      await nextButton.click({
+        timeout: 10000,
+      });
+      await expect(coverageStep).toBeVisible({
+        timeout: 15000,
+      });
+
+      console.log("Retry successful. Coverage step opened.");
+    }
   }
 }

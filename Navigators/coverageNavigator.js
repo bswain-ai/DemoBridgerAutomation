@@ -28,40 +28,77 @@ export class CoverageNavigator {
 
     await container.scrollIntoViewIfNeeded();
 
-    const checkbox = container.locator('input[type="checkbox"]');
-
-    if ((await checkbox.count()) === 0) {
-      console.log(`Checkbox not found -> ${locator}`);
-      return false;
-    }
-
-    const currentState = await checkbox.isChecked();
-
-    if (currentState === shouldEnable) {
-      console.log(`Already ${shouldEnable ? "ON" : "OFF"} -> ${locator}`);
-      return true;
-    }
-
-    for (let i = 0; i < 3; i++) {
-      await container.click({ force: true });
-
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        // Re-locate checkbox on every retry because React/MUI
+        // can re-render the coverage component.
+        const checkbox = container.locator('input[type="checkbox"]').first();
+
+        await expect(checkbox).toBeVisible({ timeout: 10000 });
+
+        const currentState = await checkbox.isChecked();
+
+        console.log(
+          `Coverage: ${locator} | Current: ${currentState} | Expected: ${shouldEnable}`,
+        );
+
+        if (currentState === shouldEnable) {
+          console.log(`Already correct -> ${locator}`);
+          return true;
+        }
+
+        // IMPORTANT:
+        // Use check/uncheck instead of clicking the parent container.
+        if (shouldEnable) {
+          await checkbox.check({ force: true });
+        } else {
+          await checkbox.uncheck({ force: true });
+        }
+
+        // Verify actual DOM state
         await expect(checkbox).toBeChecked({
           checked: shouldEnable,
-          timeout: 3000,
+          timeout: 5000,
         });
 
-        console.log(`Successfully toggled -> ${locator}`);
+        // Small stability check:
+        // Verify the state again after the UI has had time to settle.
+        await expect
+          .poll(
+            async () => {
+              const freshCheckbox = this.page
+                .locator(locator)
+                .first()
+                .locator('input[type="checkbox"]')
+                .first();
+
+              return await freshCheckbox.isChecked();
+            },
+            {
+              timeout: 5000,
+              intervals: [200, 300, 500, 1000],
+            },
+          )
+          .toBe(shouldEnable);
+
+        console.log(`Successfully set ${locator} -> ${shouldEnable}`);
+
         return true;
-      } catch {
-        console.log(`Retry ${i + 1}`);
+      } catch (error) {
+        console.log(`Toggle attempt ${attempt} failed -> ${locator}`);
+
+        if (attempt === 3) {
+          console.log(`Failed to set coverage -> ${locator}`);
+          return false;
+        }
+
+        // Wait for UI/network state to settle before retry.
+        await waitFor(this.page);
       }
     }
 
-    console.log(`Failed to toggle -> ${locator}`);
     return false;
   }
-
   // ==========================================
   // Coverage Map (Excel Driven)
   // ==========================================
@@ -251,24 +288,33 @@ export class CoverageNavigator {
     for (const v of vehicles) {
       console.log(`Processing Addons for ${v}`);
 
-      // ================= RENTAL =================
+      // ================= ADDON SELECTIONS =================
       const rentalSelected = Number(policyData[`${v} RR Selection`]) === 1;
       const roadsideSelected = Number(policyData[`${v} RSA Selection`]) === 1;
+      const fullSafetyGlassSelected =
+        Number(policyData[`${v} Full Safety Glass`]) === 1;
 
-      if (!rentalSelected && !roadsideSelected) continue;
+      if (!rentalSelected && !roadsideSelected && !fullSafetyGlassSelected) {
+        continue;
+      }
 
+      // ================= TOGGLES =================
       await wait(this.page);
       await this.toggleIfNeeded(locators.rentalToggle(v), rentalSelected);
+
       await wait(this.page);
       await this.toggleIfNeeded(locators.roadsideToggle(v), roadsideSelected);
+
+      await wait(this.page);
+      await this.toggleIfNeeded(
+        locators.fullSafetyGlassToggle(v),
+        fullSafetyGlassSelected,
+      );
 
       // ================= RENTAL LIMIT & DURATION =================
       if (rentalSelected) {
         const rrLimit = policyData[`${v} RR Limit`];
         const rrDuration = policyData[`${v} RR Duration`];
-
-        // wait for dropdowns after toggle
-        //await this.page.waitForTimeout(500);
 
         // ===== RR LIMIT =====
         if (rrLimit) {
@@ -278,8 +324,6 @@ export class CoverageNavigator {
 
           await limitDropdown.waitFor({ state: "visible" });
           await limitDropdown.click();
-
-          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -295,7 +339,6 @@ export class CoverageNavigator {
           const durationDropdown = this.page.locator(locators.rrDuration(v));
 
           await durationDropdown.click({ timeout: 20000 });
-          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -311,15 +354,11 @@ export class CoverageNavigator {
       if (roadsideSelected) {
         const rsaValue = policyData[`${v} RSA Value`];
 
-        //await this.page.waitForTimeout(500);
-
         if (rsaValue) {
           const rsaDropdown = this.page.locator(locators.rsaLimit(v));
 
           await rsaDropdown.waitFor({ state: "visible" });
           await rsaDropdown.click({ timeout: 50000 });
-
-          //await this.page.waitForTimeout(300);
 
           await this.page
             .locator('li[role="option"]', {
@@ -329,6 +368,11 @@ export class CoverageNavigator {
 
           console.log(`${v} RSA selected: ${rsaValue}`);
         }
+      }
+
+      // ================= FULL SAFETY GLASS =================
+      if (fullSafetyGlassSelected) {
+        console.log(`${v} Full Safety Glass enabled`);
       }
     }
   }

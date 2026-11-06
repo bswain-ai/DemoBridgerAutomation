@@ -7,11 +7,124 @@ export class UwTraceHelper {
   }
 
   // ================= COMMON SAFE CLICK =================
-  async safeClick(locator, name) {
-    await locator.waitFor({ state: "visible", timeout: 20000 });
-    await locator.scrollIntoViewIfNeeded();
-    await locator.click();
-    console.log(`Clicked: ${name}`);
+  async safeClick(locator, name = "Element") {
+    let lastError;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`\n[${name}] Click Attempt ${attempt}/3`);
+
+        // 1. Wait for page DOM
+        await this.page.waitForLoadState("domcontentloaded").catch(() => {});
+
+        // 2. Wait for MUI backdrop to disappear
+        const backdrop = this.page.locator(".MuiBackdrop-root");
+
+        if (await backdrop.count()) {
+          await backdrop
+            .last()
+            .waitFor({
+              state: "hidden",
+              timeout: 5000,
+            })
+            .catch(() => {});
+        }
+
+        // 3. Make sure locator exists
+        const count = await locator.count();
+
+        if (count === 0) {
+          throw new Error(`[${name}] Element not found`);
+        }
+
+        console.log(`[${name}] Locator count: ${count}`);
+
+        // 4. Wait until visible
+        await locator.first().waitFor({
+          state: "visible",
+          timeout: 20000,
+        });
+
+        // 5. Scroll into view
+        await locator.first().scrollIntoViewIfNeeded();
+
+        // 6. Verify visible
+        await expect(locator.first()).toBeVisible({
+          timeout: 5000,
+        });
+
+        // 7. Verify enabled
+        await expect(locator.first()).toBeEnabled({
+          timeout: 5000,
+        });
+
+        // 8. Trial click
+        await locator.first().click({
+          trial: true,
+          timeout: 5000,
+        });
+
+        console.log(`[${name}] Trial click successful`);
+
+        // 9. Actual click
+        await locator.first().click({
+          timeout: 10000,
+        });
+
+        console.log(`[${name}] Click successful`);
+
+        return true;
+      } catch (error) {
+        lastError = error;
+
+        console.log(`[${name}] Click Attempt ${attempt} failed`);
+
+        console.log(`Error: ${error.message}`);
+        console.log(`Current URL: ${this.page.url()}`);
+
+        // 10. Take screenshot for debugging
+        try {
+          await this.page.screenshot({
+            path: `test-results/${name.replace(
+              /[^a-zA-Z0-9]/g,
+              "_",
+            )}_attempt_${attempt}.png`,
+            fullPage: true,
+          });
+        } catch {
+          console.log("Screenshot could not be captured");
+        }
+
+        // 11. Retry if attempts remain
+        if (attempt < 3) {
+          console.log(`[${name}] Preparing for retry...`);
+
+          await this.page
+            .waitForLoadState("networkidle", {
+              timeout: 5000,
+            })
+            .catch(() => {});
+
+          await this.page
+            .locator(".MuiBackdrop-root")
+            .last()
+            .waitFor({
+              state: "hidden",
+              timeout: 3000,
+            })
+            .catch(() => {});
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // 12. Final failure
+    throw new Error(
+      `[${name}] Click failed after 3 attempts.\n` +
+        `URL: ${this.page.url()}\n` +
+        `Error: ${lastError?.message || "Unknown error"}`,
+    );
   }
 
   // ================= OPEN COVERAGE SUMMARY =================
@@ -54,20 +167,20 @@ export class UwTraceHelper {
       timeout: 30000,
     });
 
-    await expect(
-      this.page.locator('tr:has(td:text-is("Base"))').first(),
-    ).toBeVisible({
-      timeout: 30000,
-    });
-
     console.log(`Current State Inside Helper: ${state}`);
 
     // =========================================
     // TEXAS TRACE
     // =========================================
-
     if (state === "TX" || state === "Texas") {
       console.log("Using Texas Trace Parser");
+
+      // Texas has "Base" rows
+      await expect(
+        this.page.locator('tr:has(td:text-is("Base"))').first(),
+      ).toBeVisible({
+        timeout: 30000,
+      });
 
       return await this.captureTexasTraceValues();
     }
@@ -75,9 +188,21 @@ export class UwTraceHelper {
     // =========================================
     // CALIFORNIA TRACE
     // =========================================
-
     if (state === "CA" || state === "California") {
       console.log("Using California Trace Parser");
+
+      // California does NOT have the "Base" row.
+      // Wait for the actual CA trace table instead.
+      const californiaTable = this.page.locator(
+        "table:has-text('MEDPAY'):has-text('COMP'):has-text('COLL')",
+      );
+
+      await californiaTable.first().waitFor({
+        state: "visible",
+        timeout: 30000,
+      });
+
+      console.log("California Price Trace table loaded");
 
       return await this.captureCaliforniaTraceValues();
     }
@@ -85,7 +210,6 @@ export class UwTraceHelper {
     // =========================================
     // UNSUPPORTED STATE
     // =========================================
-
     throw new Error(`Unsupported State: ${state}`);
   }
 
